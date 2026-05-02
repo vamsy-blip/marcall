@@ -1992,7 +1992,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     };
     const entry = map[doc];
     if (!entry) return res.status(404).json({ message: 'No encontrado' });
-    const baseDir = path.resolve(process.cwd(), '..', 'legal');
+    // Try ./legal (relative to cwd) first, then ../legal as fallback for the
+    // monorepo layout (where the app/ workspace lives next to legal/).
+    const cwdLegal = path.resolve(process.cwd(), 'legal');
+    const parentLegal = path.resolve(process.cwd(), '..', 'legal');
+    const baseDir = fs.existsSync(cwdLegal) ? cwdLegal : parentLegal;
     const enPath = path.join(baseDir, `${entry.en}.md`);
     const esPath = path.join(baseDir, `${entry.es}.md`);
     let filePath = lang === 'en' && fs.existsSync(enPath) ? enPath : esPath;
