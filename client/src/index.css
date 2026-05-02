@@ -176,8 +176,7 @@
 @layer base {
   * { @apply border-border; }
   body { @apply font-sans antialiased bg-background text-foreground; font-feature-settings: "ss01", "cv11"; }
-  h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.02em; color: hsl(0 0% 0%); font-weight: 600; }
-  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5 { color: hsl(0 0% 100%); }
+  h1, h2, h3, h4, h5 { font-family: var(--font-display); letter-spacing: -0.02em; color: inherit; font-weight: 600; }
 }
 
 /* Marcall-specific custom utilities — monochrome only */
