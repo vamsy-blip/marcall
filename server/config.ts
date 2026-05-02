@@ -94,15 +94,19 @@ if (isLive && isProd) {
   }
 }
 
-// Derive a stable encryption key in mock mode (NOT for production data).
+// Encryption key loader. Always require MARCALL_ENCRYPTION_KEY — the
+// previous mock fallback was removed after v0.3 deploy proved the env
+// var path. Fail fast at boot if missing so we never silently encrypt
+// with a known-bad key.
 export function getEncryptionKey(): Buffer {
-  if (config.MARCALL_ENCRYPTION_KEY) {
-    const buf = Buffer.from(config.MARCALL_ENCRYPTION_KEY, 'hex');
-    if (buf.length !== 32) throw new Error('MARCALL_ENCRYPTION_KEY must be 32 bytes hex (64 chars)');
-    return buf;
+  if (!config.MARCALL_ENCRYPTION_KEY) {
+    throw new Error(
+      'MARCALL_ENCRYPTION_KEY is required. Generate with: openssl rand -hex 32'
+    );
   }
-  // Mock-only deterministic key. Rotated on every deploy in real prod.
-  return Buffer.from('marcall-mock-encryption-key-do-not-use-in-prod-32b').slice(0, 32);
+  const buf = Buffer.from(config.MARCALL_ENCRYPTION_KEY, 'hex');
+  if (buf.length !== 32) throw new Error('MARCALL_ENCRYPTION_KEY must be 32 bytes hex (64 chars)');
+  return buf;
 }
 
 export const isProduction = isProd;
