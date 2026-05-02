@@ -1,13 +1,59 @@
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Idempotent runtime schema migrations for SQLite.
- * Adds new tables and columns introduced after the initial drizzle-kit push.
  *
- * Production note: with Postgres + Drizzle migrations these are formal SQL files;
- * SQLite's looser DDL lets us apply them at startup safely.
+ * On first boot (empty DB), apply the Drizzle-generated initial migration
+ * which CREATEs every table from `shared/schema.ts`. Then run the additive
+ * ALTER TABLE / CREATE TABLE IF NOT EXISTS statements below to bring older
+ * databases up to the current schema. Both phases are idempotent.
+ *
+ * Production note: with Postgres + Drizzle migrations these are formal SQL
+ * files; SQLite's looser DDL lets us apply them at startup safely.
  */
+function applyInitialDrizzleMigration(sqlite: Database.Database) {
+  // Skip if the schema already has the core tables (db was created by an
+  // earlier `drizzle-kit push` during local development).
+  const hasUsers = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    .get();
+  if (hasUsers) return;
+
+  // Look for the migration file in a few locations: bundled into the runner
+  // image at /app/migrations, alongside cwd in dev, or two dirs up if cwd is
+  // /app/server.
+  const candidates = [
+    path.resolve(process.cwd(), 'migrations', '0000_initial.sql'),
+    path.resolve(process.cwd(), '..', 'migrations', '0000_initial.sql'),
+    path.resolve('/app/migrations/0000_initial.sql'),
+  ];
+  const file = candidates.find(p => fs.existsSync(p));
+  if (!file) {
+    console.error('[migrations] initial bootstrap file not found in', candidates);
+    return;
+  }
+  const sql = fs.readFileSync(file, 'utf-8');
+  // Drizzle uses `--> statement-breakpoint` between statements.
+  const stmts = sql.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
+  console.log(`[migrations] applying initial schema (${stmts.length} statements) from ${file}`);
+  for (const stmt of stmts) {
+    try {
+      sqlite.exec(stmt);
+    } catch (e) {
+      // Tolerate "already exists" — some dev DBs may have a few tables.
+      const msg = (e as Error).message || '';
+      if (!/already exists/i.test(msg)) {
+        console.error('[migrations] initial-stmt failed:', msg, stmt.slice(0, 80));
+      }
+    }
+  }
+}
+
 export function runMigrations(sqlite: Database.Database) {
+  applyInitialDrizzleMigration(sqlite);
+
   const exec = (sql: string) => {
     try {
       sqlite.exec(sql);

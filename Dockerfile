@@ -48,6 +48,9 @@ COPY --from=builder /app/shared ./shared
 COPY --from=builder /app/server/lib/email-templates ./server/lib/email-templates
 # Static legal markdown served by /api/legal/:doc.
 COPY --from=builder /app/legal ./legal
+# Drizzle-generated initial schema, applied by server/lib/migrations.ts
+# on first boot when the SQLite file is empty.
+COPY --from=builder /app/migrations ./migrations
 
 # Volume root must exist + be writable on first boot.
 RUN mkdir -p /data && chown -R marcall:marcall /data /app
