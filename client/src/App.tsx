@@ -18,6 +18,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
+import { MarcallLogo } from '@/components/Brand';
 
 // Marketing pages stay EAGER — they're the first paint for almost every visitor
 // and code-splitting them would add a network round-trip before hero render.
@@ -79,15 +80,17 @@ import { LanguageProvider } from '@/components/LanguageProvider';
 import { CookieProvider, CookieBanner } from '@/components/CookieBanner';
 import { InstallBanner } from '@/components/InstallBanner';
 
-// Suspense fallback shown briefly while a lazy chunk downloads. Keep it lean
-// (no logo, no animation) so it renders in <16ms and feels like a navigation.
+// Suspense fallback shown while a lazy chunk downloads or while the Render
+// free-tier cold-starts (~30s). Branded so users see something familiar
+// rather than a blank screen.
 function ChunkFallback() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center text-muted-foreground"
+      className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background"
       data-testid="chunk-loading"
     >
-      Cargando…
+      <MarcallLogo size={36} className="text-primary animate-pulse" />
+      <div className="text-sm text-muted-foreground">Cargando…</div>
     </div>
   );
 }

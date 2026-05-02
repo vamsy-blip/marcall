@@ -151,7 +151,7 @@ MARCALL will evaluate your request and inform you, within the applicable legal t
 
 ## 7. Tracking Technologies
 
-The marcall.careofaddress.com website and the MARCALL platform may use cookies and similar technologies to improve user experience and analyze traffic. Analytics cookies (Plausible Analytics) are activated only with your prior consent (opt-in). You may manage your preferences at any time through the cookie banner on the site. For more information, please consult our **Cookie Policy** at `https://marcall.careofaddress.com/cookies`.
+The marcall.careofaddress.com website and the MARCALL platform may use cookies and similar technologies to improve user experience and analyze traffic. Analytics cookies (Plausible Analytics) are activated only with your prior consent (opt-in). You may manage your preferences at any time through the cookie banner on the site. For more information, please consult our **Cookie Policy** at `https://marcall.careofaddress.com/legal/cookies`.
 
 ### 7.1 International Data Transfers and Sub-Processors
 

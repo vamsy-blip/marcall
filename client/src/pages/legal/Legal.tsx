@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useRoute } from 'wouter';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { useLang } from '@/components/LanguageProvider';
 import { useTranslation } from 'react-i18next';
 import { MarcallWordmark } from '@/components/Brand';
@@ -20,8 +21,11 @@ export default function LegalPage() {
     fetch(`/api/legal/${doc}?lang=${lang}`)
       .then((r) => r.json())
       .then((data) => {
-        const rendered = marked.parse(data.content || '', { async: false }) as string;
-        setHtml(rendered);
+        // Render markdown, then sanitize with DOMPurify before injecting.
+        // marked does not strip <script>/event-handlers by default.
+        const raw = marked.parse(data.content || '', { async: false }) as string;
+        const safe = DOMPurify.sanitize(raw, { USE_PROFILES: { html: true } });
+        setHtml(safe);
       })
       .catch(() => setHtml(`<p>${t('common.loading')}</p>`))
       .finally(() => setLoading(false));
@@ -31,6 +35,9 @@ export default function LegalPage() {
     privacy: { es: 'Aviso de privacidad', en: 'Privacy notice' },
     terms: { es: 'Términos y condiciones', en: 'Terms of service' },
     resellers: { es: 'Programa de revendedores', en: 'Reseller program' },
+    cookies: { es: 'Política de cookies', en: 'Cookie policy' },
+    'acceptable-use': { es: 'Política de uso aceptable', en: 'Acceptable use policy' },
+    dpa: { es: 'Contrato de procesamiento de datos', en: 'Data processing agreement' },
   };
   const title = titles[doc]?.[lang] || doc;
 

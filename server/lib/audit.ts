@@ -101,6 +101,18 @@ const REDACT_KEYS = new Set([
   'rfc',
   'curp',
   'ine',
+  // PII under LFPDPPP — phone numbers and direct-contact identifiers must
+  // not appear in audit metadata.
+  'phone',
+  'phonenumber',
+  'phone_number',
+  'callerphone',
+  'caller_phone',
+  'e164',
+  'email',
+  'clabe',
+  'transfernumber',
+  'transfer_number',
 ]);
 
 export function redactPII<T = unknown>(obj: T): T {

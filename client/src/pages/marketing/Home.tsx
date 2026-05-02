@@ -166,9 +166,6 @@ export default function Home() {
               <Badge variant="outline" className="gap-1.5 py-1 px-3" data-testid="badge-tagline">
                 <Sparkles className="w-3 h-3" /> {t('marketing.tagline')}
               </Badge>
-              <Badge variant="secondary" className="gap-1.5 py-1 px-3" data-testid="badge-dev">
-                {t('marketing.activeDev')}
-              </Badge>
             </div>
             <h1 className="font-display font-semibold leading-[1.05] tracking-tight text-[clamp(2.75rem,6.5vw,5rem)]" data-testid="text-hero-title">
               {t('marketing.heroTitleA')}{' '}

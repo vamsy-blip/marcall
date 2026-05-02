@@ -145,7 +145,7 @@ MARCALL evaluará su solicitud y le informará, dentro de los plazos legales apl
 
 ## 7. Uso de tecnologías de rastreo
 
-El sitio web marcall.careofaddress.com y la plataforma de MARCALL pueden utilizar cookies y tecnologías similares para mejorar la experiencia del usuario y analizar el tráfico. Las cookies analíticas (Plausible Analytics) se activan únicamente con su consentimiento previo (opt-in). Puede gestionar sus preferencias en cualquier momento a través del banner de cookies en el sitio. Para mayor información, consulte nuestra **Política de Cookies** disponible en `https://marcall.careofaddress.com/cookies`.
+El sitio web marcall.careofaddress.com y la plataforma de MARCALL pueden utilizar cookies y tecnologías similares para mejorar la experiencia del usuario y analizar el tráfico. Las cookies analíticas (Plausible Analytics) se activan únicamente con su consentimiento previo (opt-in). Puede gestionar sus preferencias en cualquier momento a través del banner de cookies en el sitio. Para mayor información, consulte nuestra **Política de Cookies** disponible en `https://marcall.careofaddress.com/legal/cookies`.
 
 ---
 

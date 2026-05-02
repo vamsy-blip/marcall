@@ -66,7 +66,7 @@ export function AppShell({
           })}
         </nav>
         <div className="p-3 border-t border-sidebar-border">
-          <DevSwitcher />
+          {import.meta.env.DEV && <DevSwitcher />}
         </div>
       </aside>
 

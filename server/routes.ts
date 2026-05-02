@@ -668,12 +668,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
-  // DEV login-as (gated to non-production for safety; demo creds remain available
-  // because the deployed sandbox runs in production NODE_ENV but in mock mode).
+  // DEV-ONLY endpoints. Hard-gated on NODE_ENV=development AND an explicit
+  // MARCALL_ENABLE_DEV_ENDPOINTS flag. NEVER active in production builds —
+  // these would otherwise allow logging in as any user without a password.
+  const DEV_ENDPOINTS_ENABLED =
+    process.env.NODE_ENV === 'development' && process.env.MARCALL_ENABLE_DEV_ENDPOINTS === 'true';
+
   app.post('/api/dev/login-as', async (req, res) => {
-    if (isProduction && config.MARCALL_INTEGRATION_MODE === 'live') {
-      return res.status(404).json({ message: 'No encontrado' });
-    }
+    if (!DEV_ENDPOINTS_ENABLED) return res.status(404).json({ message: 'No encontrado' });
     const email = req.body?.email as string;
     const user = await storage.getUserByEmail(email);
     if (!user) return res.status(404).json({ message: 'No encontrado' });
@@ -686,6 +688,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.get('/api/dev/users', async (_req, res) => {
+    if (!DEV_ENDPOINTS_ENABLED) return res.status(404).json({ message: 'No encontrado' });
     const users = await storage.listUsers();
     res.json({ users: users.map(u => ({ id: u.id, email: u.email, name: u.name, role: u.role, currentTenantId: u.currentTenantId, resellerId: u.resellerId })) });
   });
@@ -835,10 +838,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ...t, subscription: sub, plan: plan ? { ...plan, features: JSON.parse(plan.features) } : null });
   });
 
+  // Strict allow-list of tenant fields the owner may edit. Plan/billing/reseller/
+  // status/stripeCustomerId fields are MUTABLE ONLY via admin or webhook paths.
+  const tenantSelfUpdateSchema = z.object({
+    name: z.string().min(1).max(120).optional(),
+    industry: z.string().max(80).optional(),
+    timezone: z.string().max(60).optional(),
+    transferNumber: z.string().max(20).optional(),
+    addressLine: z.string().max(200).optional().nullable(),
+    city: z.string().max(80).optional().nullable(),
+    state: z.string().max(80).optional().nullable(),
+    postalCode: z.string().max(20).optional().nullable(),
+    logoUrl: z.string().url().max(500).optional().nullable(),
+    locale: z.string().max(20).optional(),
+    recordingRetentionDays: z.number().int().min(1).max(3650).optional(),
+  }).strict();
+
   app.patch('/api/tenants/:id', requireAuth, async (req, res) => {
     const id = +req.params.id;
     if (!(await canAccessTenant(req.user, id))) return res.status(403).json({ message: 'Sin acceso' });
-    const t = await storage.updateTenant(id, req.body);
+    // Superadmins can use the admin route for full edits; tenant_owner gets the
+    // strict allow-list (cannot self-upgrade plan or change billing identity).
+    const isAdmin = req.user!.role === 'superadmin';
+    const data = isAdmin ? req.body : tenantSelfUpdateSchema.safeParse(req.body);
+    if (!isAdmin && !(data as any).success) {
+      return res.status(400).json({ message: 'Datos inválidos', errors: (data as any).error.errors });
+    }
+    const safeBody = isAdmin ? req.body : (data as any).data;
+    const t = await storage.updateTenant(id, safeBody);
+    logAudit(req, { action: 'tenant.update', actorUserId: req.user!.id, tenantId: id, targetKind: 'tenant', targetId: String(id), metadata: { fields: Object.keys(safeBody || {}) } });
     res.json(t);
   });
 
@@ -1344,8 +1372,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ============ VAPI TOOL ENDPOINTS ============
+  // Constant-time compare so an attacker can't time the secret length.
   function checkVapiSecret(req: Request) {
-    return (req.headers['x-vapi-secret'] as string) === VAPI_TOOL_SECRET;
+    if (!VAPI_TOOL_SECRET) return false;
+    const provided = (req.headers['x-vapi-secret'] as string) || '';
+    if (provided.length !== VAPI_TOOL_SECRET.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(VAPI_TOOL_SECRET));
+    } catch {
+      return false;
+    }
   }
   // Apply rate limit to all /api/tools/* tool callbacks
   app.use('/api/tools', toolsLimiter);
@@ -1986,9 +2022,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // Each doc maps to { es, en } file basenames so we can use the full v0.2
     // TOS without breaking the Spanish/English fallback for other docs.
     const map: Record<string, { es: string; en: string }> = {
-      'privacy':   { es: 'aviso-de-privacidad',                 en: 'aviso-de-privacidad-en' },
-      'terms':     { es: 'terms-of-service-careofaddress-es',   en: 'terms-of-service-careofaddress-en' },
-      'resellers': { es: 'programa-de-revendedores',            en: 'programa-de-revendedores-en' },
+      'privacy':         { es: 'aviso-de-privacidad',               en: 'aviso-de-privacidad-en' },
+      'terms':           { es: 'terms-of-service-careofaddress-es', en: 'terms-of-service-careofaddress-en' },
+      'resellers':       { es: 'programa-de-revendedores',          en: 'programa-de-revendedores-en' },
+      'cookies':         { es: 'politica-de-cookies',               en: 'cookies-policy-en' },
+      'acceptable-use':  { es: 'politica-uso-aceptable',            en: 'acceptable-use-policy-en' },
+      'dpa':             { es: 'contrato-procesamiento-datos',      en: 'data-processing-agreement-en' },
     };
     const entry = map[doc];
     if (!entry) return res.status(404).json({ message: 'No encontrado' });
@@ -2865,7 +2904,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
 
   // System info
-  app.get('/api/system', (_req, res) => {
+  app.get('/api/system', requireAuth, (_req, res) => {
     res.json({
       mode: INTEGRATION_MODE,
       stripeMode,
@@ -2890,7 +2929,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post('/api/cron/daily-summary', async (req, res) => {
     const cronSecret = getSecret('MARCALL_CRON_SECRET');
     const provided = req.headers['x-cron-token'] as string | undefined;
-    if (cronSecret && provided !== cronSecret) {
+    // Reject when secret not configured OR token missing/mismatched.
+    if (!cronSecret || !provided || provided !== cronSecret) {
       logAudit(req, { action: 'cron.daily_summary.unauthorized', result: 'denied' });
       return res.status(401).json({ message: 'Unauthorized' });
     }
