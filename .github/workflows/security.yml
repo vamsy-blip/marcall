@@ -1,0 +1,69 @@
+# Security CI workflow (Control 9)
+# This file is present but NOT enabled — Vamsy will activate it when the GitHub repo exists.
+# To enable: rename this file to security.yml (already done) and push to the repo.
+#
+# Runs on every push to main and pull_request events.
+
+name: Security Checks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  security:
+    name: Security audit & lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: NPM audit (high severity)
+        working-directory: app
+        run: npm audit --audit-level=high
+
+      - name: TypeScript check
+        working-directory: app
+        run: npm run check
+
+      - name: ESLint (if config present)
+        working-directory: app
+        run: |
+          if [ -f ".eslintrc*" ] || [ -f "eslint.config*" ]; then
+            npx eslint . --max-warnings 0
+          else
+            echo "ESLint config not found, skipping."
+          fi
+
+      - name: Semgrep (if available)
+        working-directory: app
+        run: |
+          if command -v semgrep &> /dev/null; then
+            semgrep --config=auto --error
+          else
+            echo "Semgrep not installed, skipping."
+          fi
+        continue-on-error: true
+
+      - name: Audit chain verification
+        working-directory: app
+        run: |
+          if [ -f "data.db" ]; then
+            npm run audit:verify
+          else
+            echo "No data.db found (CI environment), skipping audit chain verify."
+          fi

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New sales inquiry</title>
+</head>
+<body style="margin:0;padding:0;background:#FAFAFA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <tr><td style="padding:40px 40px 32px;">
+
+        <p style="margin:0 0 32px;font-weight:700;font-size:20px;letter-spacing:2px;color:#0A0A0A;text-transform:uppercase;">MARCALL</p>
+
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0A0A0A;line-height:1.3;">New sales inquiry</h1>
+        <p style="margin:0 0 24px;font-size:16px;color:#3D3D3D;line-height:1.6;">
+          Someone completed the contact form on the MARCALL website.
+        </p>
+        <table style="width:100%;margin-bottom:24px;border-collapse:collapse;border:1px solid #EBEBEB;border-radius:6px;">
+          <tr><td style="padding:12px 16px;font-size:14px;color:#8A8A8A;font-weight:600;border-bottom:1px solid #EBEBEB;background:#F5F9F7;">PROSPECT DETAILS</td></tr>
+          <tr><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;"><strong>Name:</strong> {{prospect_name}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;"><strong>Email:</strong> <a href="mailto:{{prospect_email}}" style="color:#3F6B57;">{{prospect_email}}</a></td></tr>
+          <tr><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;"><strong>Phone:</strong> {{prospect_phone}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;"><strong>Company:</strong> {{prospect_company}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;"><strong>Message:</strong><br><span style="color:#8A8A8A;">{{prospect_message}}</span></td></tr>
+        </table>
+        <p style="margin:0 0 24px;font-size:13px;color:#8A8A8A;line-height:1.5;">
+          Received on {{submitted_at}} · Source: {{source}}
+        </p>
+
+        <hr style="margin:32px 0;border:0;border-top:1px solid #EBEBEB;">
+        <p style="margin:0;font-size:12px;color:#8A8A8A;line-height:1.6;">
+          This is an internal MARCALL email — automated system notification.<br>
+          MARCALL · careofaddress.com
+        </p>
+
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

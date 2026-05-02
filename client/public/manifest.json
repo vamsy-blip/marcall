@@ -1,0 +1,45 @@
+{
+  "name": "MARCALL",
+  "short_name": "MARCALL",
+  "description": "MARCALL — Recepcionista IA bilingüe para negocios mexicanos. Atiende llamadas 24/7, agenda citas y captura leads.",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "theme_color": "#3F6B57",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/#/app/resumen",
+  "categories": ["business", "productivity", "communication"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Resumen",
+      "short_name": "Resumen",
+      "url": "/#/app/resumen",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Llamadas",
+      "short_name": "Llamadas",
+      "url": "/#/app/llamadas",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Citas",
+      "short_name": "Citas",
+      "url": "/#/app/citas",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Asistente",
+      "short_name": "Asistente",
+      "url": "/#/app/asistente",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

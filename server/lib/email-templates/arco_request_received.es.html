@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solicitud ARCO recibida</title>
+</head>
+<body style="margin:0;padding:0;background:#FAFAFA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#FFFFFF;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <tr><td style="padding:40px 40px 32px;">
+
+        <p style="margin:0 0 32px;font-weight:700;font-size:20px;letter-spacing:2px;color:#0A0A0A;text-transform:uppercase;">MARCALL</p>
+
+        <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#0A0A0A;line-height:1.3;">Solicitud de derechos ARCO recibida</h1>
+        <p style="margin:0 0 8px;font-size:16px;color:#3D3D3D;line-height:1.6;">Hola {{name}},</p>
+        <p style="margin:0 0 24px;font-size:16px;color:#3D3D3D;line-height:1.6;">
+          Hemos recibido tu solicitud de ejercicio de derechos ARCO (Acceso, Rectificación, Cancelación u Oposición) conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares.
+        </p>
+        <table style="width:100%;margin-bottom:24px;border-collapse:collapse;border:1px solid #EBEBEB;border-radius:6px;">
+          <tr style="background:#F5F9F7;">
+            <td colspan="2" style="padding:12px 16px;font-size:14px;color:#8A8A8A;font-weight:600;border-bottom:1px solid #EBEBEB;">DETALLES DE TU SOLICITUD</td>
+          </tr>
+          <tr><td style="padding:12px 16px;font-size:14px;color:#8A8A8A;border-bottom:1px solid #EBEBEB;width:40%;">No. de referencia</td><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;font-weight:700;font-family:monospace;">{{reference}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:14px;color:#8A8A8A;border-bottom:1px solid #EBEBEB;">Tipo de solicitud</td><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;">{{request_type}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:14px;color:#8A8A8A;border-bottom:1px solid #EBEBEB;">Fecha de recepción</td><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;border-bottom:1px solid #EBEBEB;">{{received_date}}</td></tr>
+          <tr><td style="padding:12px 16px;font-size:14px;color:#8A8A8A;">Plazo de respuesta</td><td style="padding:12px 16px;font-size:15px;color:#3D3D3D;font-weight:600;">20 días hábiles (antes del {{deadline_date}})</td></tr>
+        </table>
+        <p style="margin:0 0 24px;font-size:16px;color:#3D3D3D;line-height:1.6;">
+          Atenderemos tu solicitud en un plazo máximo de <strong>20 días hábiles</strong> conforme al artículo 32 de la LFPDPPP. Te notificaremos por correo cuando tengamos una respuesta.
+        </p>
+        <p style="margin:0 0 24px;font-size:14px;color:#8A8A8A;line-height:1.5;">
+          Responsable: Care of Address S.A.P.I. de C.V. · <a href="mailto:privacidad@careofaddress.com" style="color:#3F6B57;">privacidad@careofaddress.com</a>
+        </p>
+
+        <hr style="margin:32px 0;border:0;border-top:1px solid #EBEBEB;">
+        <p style="margin:0;font-size:12px;color:#8A8A8A;line-height:1.6;">
+          MARCALL · Operada desde Monterrey, México · <a href="https://careofaddress.com" style="color:#8A8A8A;">careofaddress.com</a><br>
+          Recibiste este correo porque tienes una cuenta MARCALL.<br>
+          <a href="{{unsubscribe_url}}" style="color:#8A8A8A;">Preferencias de correo</a> · <a href="https://marcall.careofaddress.com/security" style="color:#8A8A8A;">Seguridad</a>
+        </p>
+
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

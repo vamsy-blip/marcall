@@ -1,0 +1,35 @@
+# MARCALL — Render Blueprint (mock mode v0.3)
+#
+# Deploys the Express+Vite app from this directory as a single Docker web
+# service with a 1GB persistent disk for the SQLite database. SQLite path is
+# wired via the SQLITE_PATH env var (already honored by server/storage.ts).
+#
+# Secrets (MARCALL_ENCRYPTION_KEY, MARCALL_CRON_SECRET, SESSION_SECRET) are
+# set on the service itself via the Render API, not stored in this blueprint.
+services:
+  - type: web
+    name: marcall
+    runtime: docker
+    plan: starter           # 512MB RAM, $7/mo — enough for mock mode
+    region: oregon          # closest free region with low latency to MX
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MARCALL_MODE
+        value: mock
+      - key: MARCALL_INTEGRATION_MODE
+        value: mock
+      - key: PORT
+        value: "10000"      # Render's default web port
+      - key: SQLITE_PATH
+        value: /data/data.db
+      - key: MARCALL_AUTOSEED
+        value: "true"
+    disk:
+      name: marcall-data
+      mountPath: /data
+      sizeGB: 1

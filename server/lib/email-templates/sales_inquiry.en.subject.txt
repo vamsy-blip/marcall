@@ -1,0 +1,1 @@
+New sales inquiry: {{prospect_name}}
