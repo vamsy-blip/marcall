@@ -92,78 +92,56 @@ export function CookieProvider({ children }: { children: ReactNode }) {
 export const useCookies = () => useContext(CookieCtx);
 
 export function CookieBanner() {
-  const { i18n } = useTranslation();
-  const lang = i18n.language?.startsWith('en') ? 'en' : 'es';
+  const { t } = useTranslation();
   const { consent, acceptAll, acceptEssential } = useCookies();
 
   if (consent !== null) return null;
 
+  // H-3 fix: bottom-center compact bar instead of corner sheet. Persists across
+  // hash navigations because consent is stored in a 1y cookie (read on every
+  // mount above). Mobile gets a stacked layout; desktop is a single compact row.
   return (
     <div
-      className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-md z-50 bg-background border shadow-lg rounded-lg p-4 md:p-5"
+      className="fixed inset-x-0 bottom-3 md:bottom-4 z-50 px-3 pointer-events-none"
       role="region"
-      aria-label="Cookie notice"
+      aria-label={t('cookies.title')}
       data-testid="cookie-banner"
     >
-      <div className="flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs md:text-sm font-medium mb-1">
-            {lang === 'en' ? 'Privacy preferences' : 'Preferencias de privacidad'}
-          </p>
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-            {lang === 'en'
-              ? 'We use essential cookies for authentication and security. With your consent, we also use anonymous analytics (Plausible) to improve the product.'
-              : 'Usamos cookies esenciales para autenticación y seguridad. Con tu consentimiento, también usamos analíticas anónimas (Plausible) para mejorar el producto.'}
-          </p>
-
-          {/* Categories */}
-          <div className="text-xs mb-3 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary inline-block" />
-              <span className="font-medium">{lang === 'en' ? 'Essential' : 'Esenciales'}</span>
-              <span className="text-muted-foreground">({lang === 'en' ? 'always active' : 'siempre activas'})</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-muted-foreground/40 inline-block" />
-              <span className="font-medium">{lang === 'en' ? 'Analytics' : 'Analíticas'}</span>
-              <span className="text-muted-foreground">(Plausible — {lang === 'en' ? 'anonymous' : 'anónimas'})</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={acceptAll}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 h-8 text-xs"
-              data-testid="button-cookie-accept-all"
-            >
-              {lang === 'en' ? 'Accept all' : 'Aceptar todo'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={acceptEssential}
-              className="h-8 text-xs"
-              data-testid="button-cookie-essential-only"
-            >
-              {lang === 'en' ? 'Essential only' : 'Solo esenciales'}
-            </Button>
-            <Link href="/security" data-testid="link-cookie-learn">
-              <button className="text-xs text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
-                {lang === 'en' ? 'Learn more' : 'Más información'}
-              </button>
-            </Link>
-          </div>
+      <div className="mx-auto max-w-2xl pointer-events-auto bg-background/95 backdrop-blur border border-border shadow-lg rounded-full px-4 py-2 md:py-2.5 flex items-center gap-3">
+        <ShieldCheck className="w-4 h-4 text-foreground shrink-0" aria-hidden="true" />
+        <p className="text-xs leading-snug flex-1 min-w-0 truncate md:whitespace-normal">
+          {t('cookies.banner')}{' '}
+          <Link href="/security" data-testid="link-cookie-learn" className="underline underline-offset-2 hover:text-foreground text-muted-foreground">
+            {t('cookies.learn')}
+          </Link>
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={acceptEssential}
+            className="h-7 text-xs rounded-full px-3"
+            data-testid="button-cookie-essential-only"
+          >
+            {t('cookies.strictly')}
+          </Button>
+          <Button
+            size="sm"
+            onClick={acceptAll}
+            className="h-7 text-xs rounded-full px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+            data-testid="button-cookie-accept-all"
+          >
+            {t('cookies.acceptAll')}
+          </Button>
+          <button
+            onClick={acceptEssential}
+            aria-label={t('common.close')}
+            className="text-muted-foreground/60 hover:text-foreground transition-colors p-1"
+            data-testid="button-cookie-dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button
-          onClick={acceptEssential}
-          aria-label="Dismiss cookie notice"
-          className="text-muted-foreground/60 hover:text-foreground transition-colors -mt-1 -mr-1 p-1"
-          data-testid="button-cookie-dismiss"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

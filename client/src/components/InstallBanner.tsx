@@ -16,6 +16,10 @@ export function InstallBanner() {
   const { t } = useTranslation();
   const [evt, setEvt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  // Don't pop the install banner the instant the page mounts — that feels
+  // pushy. Wait 30s so the user has a chance to actually look at the product
+  // before we ask them to install it.
+  const [readyToShow, setReadyToShow] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -28,13 +32,15 @@ export function InstallBanner() {
     };
     window.addEventListener('beforeinstallprompt', handler as EventListener);
     window.addEventListener('appinstalled', installed);
+    const timer = setTimeout(() => setReadyToShow(true), 30_000);
     return () => {
       window.removeEventListener('beforeinstallprompt', handler as EventListener);
       window.removeEventListener('appinstalled', installed);
+      clearTimeout(timer);
     };
   }, []);
 
-  if (!evt || dismissed) return null;
+  if (!evt || dismissed || !readyToShow) return null;
 
   const onInstall = async () => {
     try {

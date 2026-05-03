@@ -43,8 +43,10 @@
   --secondary-foreground: 0 0% 100%;
 
   /* Muted: very light grey surface; ash text */
+  /* A-1 fix: bumped foreground from 45% to 40% to push contrast above WCAG AA
+     for body text on the white background. */
   --muted: 0 0% 97%;
-  --muted-foreground: 0 0% 45%;
+  --muted-foreground: 0 0% 40%;
 
   /* Accent: very light grey for hover/zebra (NOT a color accent) */
   --accent: 0 0% 97%;

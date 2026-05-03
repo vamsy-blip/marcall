@@ -154,8 +154,15 @@ export function purgeStaleSessions(): void {
  */
 export function sessionCookieOpts() {
   return {
+    // httpOnly prevents JavaScript from reading the session cookie (XSS
+    // mitigation). Required.
     httpOnly: true,
-    sameSite: 'lax' as const,
+    // SameSite=strict keeps the session cookie out of any cross-origin
+    // request, including top-level navigation initiated by another origin.
+    // We do not rely on cross-site links to surface authenticated content,
+    // so 'strict' is safe and gives the strongest CSRF defense alongside
+    // the explicit double-submit token cookie.
+    sameSite: 'strict' as const,
     secure: isProduction,
     maxAge: SESSION_SLIDING_MS,
     path: '/',

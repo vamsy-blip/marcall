@@ -36,13 +36,36 @@ initSecrets();
 
 // Failed-login tracking per (email, ip) bucket. 5 attempts / 15min triggers
 // short lockout. Independent of express-rate-limit's IP gate.
+//
+// In-memory ring backed by `users.failedLoginCount` for durability across
+// restarts: each successful login zeros both. The Map adds an upper-bound
+// memory cap (LOCK_MAP_MAX) so a flood of unique email guesses cannot
+// bloat process memory.
 const LOCK_WINDOW_MS = 15 * 60 * 1000;
 const LOCK_THRESHOLD = 5;
+const LOCK_MAP_MAX = 10_000;
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 function loginKey(req: Request, email: string) {
   return `${req.ip || 'noip'}:${email.toLowerCase()}`;
 }
+function evictExpiredLoginAttempts() {
+  const now = Date.now();
+  for (const [k, v] of loginAttempts.entries()) {
+    if (v.resetAt < now) loginAttempts.delete(k);
+    if (loginAttempts.size <= LOCK_MAP_MAX) return;
+  }
+  // If still over cap after expiring, drop the oldest entries.
+  if (loginAttempts.size > LOCK_MAP_MAX) {
+    const overflow = loginAttempts.size - LOCK_MAP_MAX;
+    const it = loginAttempts.keys();
+    for (let i = 0; i < overflow; i++) {
+      const k = it.next().value;
+      if (k) loginAttempts.delete(k);
+    }
+  }
+}
 function recordLoginFailure(key: string) {
+  if (loginAttempts.size >= LOCK_MAP_MAX) evictExpiredLoginAttempts();
   const now = Date.now();
   const cur = loginAttempts.get(key);
   if (!cur || cur.resetAt < now) {
@@ -63,13 +86,34 @@ function isLoginLocked(key: string): boolean {
 function clearLoginFailures(key: string) {
   loginAttempts.delete(key);
 }
+// Persisted-lockout helper: caller passes a fresh user record. We treat
+// `users.failedLoginCount >= LOCK_THRESHOLD` as a soft lock so a long-lived
+// brute-force survives process restarts (which would otherwise reset the
+// in-memory Map).
+function isUserPersistLocked(user: any): boolean {
+  return user && Number(user.failedLoginCount || 0) >= LOCK_THRESHOLD;
+}
 
-// MFA challenge tokens (in-memory, short-lived — 5 min TTL)
-const mfaChallenges = new Map<string, { userId: number; expiresAt: number }>();
+// MFA challenge tokens (in-memory, short-lived — 5 min TTL).
+// `attempts` counts wrong TOTPs against this challenge so a stolen
+// challenge token cannot be brute-forced beyond ~10 guesses.
+const MFA_CHALLENGE_MAX_ATTEMPTS = 10;
+const mfaChallenges = new Map<string, { userId: number; expiresAt: number; attempts: number }>();
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of mfaChallenges.entries()) {
     if (v.expiresAt < now) mfaChallenges.delete(k);
+  }
+}, 60 * 1000).unref?.();
+
+// OAuth state nonces (Control: prevent CSRF on Google/OAuth callbacks).
+// Issued on /authorize, consumed on /callback. 10-minute TTL.
+const OAUTH_NONCE_TTL_MS = 10 * 60 * 1000;
+const oauthNonces = new Map<string, { tenantId: number; userId: number; expiresAt: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of oauthNonces.entries()) {
+    if (v.expiresAt < now) oauthNonces.delete(k);
   }
 }, 60 * 1000).unref?.();
 
@@ -117,6 +161,19 @@ function requireRole(roles: string[]) {
     }
     next();
   };
+}
+
+// Require MFA on the current session for high-impact endpoints (super-admin
+// and billing portal). The session itself was created by login or the MFA
+// verify endpoint; here we reject any session whose user has not enrolled
+// MFA. Front-end is expected to redirect such users to /app/seguridad.
+function requireMfa(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) return res.status(401).json({ message: 'No autenticado' });
+  if (!(req.user as any).mfaEnabled) {
+    logAudit(req, { action: 'authz.mfa_required', result: 'denied', metadata: { path: req.path } });
+    return res.status(403).json({ message: 'MFA requerido. Activa autenticación de dos pasos en Seguridad.', requireMfa: true });
+  }
+  next();
 }
 
 // Tenant access middleware. Applied to every /api/tenants/:id/* route.
@@ -182,17 +239,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ───── CSRF double-submit cookie check (Control 11) ─────
   // All state-mutating requests must echo the __Host-marcall_csrf cookie
-  // in the X-CSRF-Token header. GET/HEAD/OPTIONS are exempt.
+  // in the X-CSRF-Token header. GET/HEAD/OPTIONS are exempt. Webhooks,
+  // tool endpoints, and the dev/demo endpoints have their own auth
+  // (HMAC, shared secret, dev-flag) so CSRF is not applicable there.
   app.use((req, res, next) => {
     const EXEMPT_METHODS = ['GET', 'HEAD', 'OPTIONS'];
     const EXEMPT_PATHS = ['/api/webhooks/', '/api/tools/', '/api/dev/', '/api/demo/'];
     if (EXEMPT_METHODS.includes(req.method)) return next();
     if (EXEMPT_PATHS.some(p => req.path.startsWith(p))) return next();
-    // Also exempt auth/signup + auth/login (they create the CSRF token)
+    // Endpoints that BOOTSTRAP a session (login/signup/mfa-verify/checkout)
+    // are exempt because the user does not yet have a CSRF cookie. Each one
+    // has its own brute-force defenses (authLimiter, MFA challenge counter).
+    // Forgot/reset/verify-email take an out-of-band token, also CSRF-safe.
     if (req.path === '/api/auth/login' || req.path === '/api/auth/signup' ||
         req.path === '/api/auth/mfa/verify' || req.path === '/api/checkout/create' ||
         req.path === '/api/auth/forgot' || req.path === '/api/auth/reset-password' ||
         req.path === '/api/auth/verify-email') return next();
+    // The CSRF cookie is intentionally readable by client JS (httpOnly:false)
+    // so the SPA can echo it back in X-CSRF-Token. The session cookie stays
+    // httpOnly; CSRF token is NOT a credential by itself — it only proves
+    // "the request originated from a page that read our cookie".
     const cookieToken = req.cookies?.['__Host-marcall_csrf'] || req.cookies?.['marcall_csrf'];
     const headerToken = req.headers['x-csrf-token'] as string | undefined;
     if (!cookieToken || !headerToken || cookieToken !== headerToken) {
@@ -373,17 +439,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // Constant-ish total wall-clock to prevent enumeration.
     const minWall = new Promise<void>(r => setTimeout(r, 250));
     const user = await storage.getUserByEmail(email);
+    // Persisted lockout (survives process restart): if the user record
+    // shows >= LOCK_THRESHOLD failed logins, treat as locked. The window
+    // is the same 15 min; a successful login zeros the counter below.
+    if (user && isUserPersistLocked(user)) {
+      logAudit(req, { action: 'auth.login_persist_locked', result: 'denied', actorUserId: user.id });
+      await new Promise(r => setTimeout(r, 350));
+      return res.status(429).json({ message: 'Demasiados intentos. Espere unos minutos y vuelva a intentar.' });
+    }
     const verify = await verifyPassword(password || '', user?.passwordHash);
     await minWall;
     if (!user || !verify.ok) {
       recordLoginFailure(key);
+      // Persist the counter so the lockout survives a process restart.
+      if (user) {
+        try {
+          await storage.updateUser(user.id, {
+            failedLoginCount: Number(user.failedLoginCount || 0) + 1,
+          } as any);
+        } catch {}
+      }
       logAudit(req, { action: 'auth.login_failure', result: 'denied', actorUserId: user?.id ?? null, metadata: { email_hash: crypto.createHash('sha256').update(email).digest('hex').slice(0, 16) } });
       return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
     }
     clearLoginFailures(key);
-    // Transparent rehash legacy sha256 → bcrypt.
+    // Transparent rehash legacy sha256 → bcrypt + flag for forced reset.
     if (verify.needsRehash) {
-      try { await storage.updateUser(user.id, { passwordHash: await hashPassword(password) } as any); } catch {}
+      try {
+        await storage.updateUser(user.id, {
+          passwordHash: await hashPassword(password),
+          ...(verify.isLegacy ? { mustResetPassword: true } : {}),
+        } as any);
+      } catch {}
     }
     try {
       await storage.updateUser(user.id, { lastLoginAt: new Date(), failedLoginCount: 0 } as any);
@@ -392,7 +479,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // MFA check: if enabled, return challenge instead of full session
     if ((user as any).mfaEnabled) {
       const challengeToken = crypto.randomBytes(32).toString('hex');
-      mfaChallenges.set(challengeToken, { userId: user.id, expiresAt: Date.now() + 5 * 60 * 1000 });
+      mfaChallenges.set(challengeToken, { userId: user.id, expiresAt: Date.now() + 5 * 60 * 1000, attempts: 0 });
       logAudit(req, { action: 'auth.mfa_challenge_issued', actorUserId: user.id });
       return res.json({ mfaRequired: true, challengeToken });
     }
@@ -506,6 +593,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  // Per-user notification preferences (J-60).
+  // GET returns a stable shape with sensible defaults so the UI can render
+  // before the user has ever saved anything.
+  app.get('/api/me/notification-prefs', async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: 'No autenticado' });
+    const u: any = req.user;
+    const defaults = { emailNewCall: true, emailNewAppt: true, emailDailyDigest: false, smsCritical: false };
+    let parsed: any = {};
+    if (u.notificationPrefs) {
+      try { parsed = JSON.parse(u.notificationPrefs); } catch { parsed = {}; }
+    }
+    res.json({ ...defaults, ...parsed });
+  });
+  app.put('/api/me/notification-prefs', async (req, res) => {
+    if (!req.user) return res.status(401).json({ message: 'No autenticado' });
+    const schema = z.object({
+      emailNewCall: z.boolean().optional(),
+      emailNewAppt: z.boolean().optional(),
+      emailDailyDigest: z.boolean().optional(),
+      smsCritical: z.boolean().optional(),
+    });
+    const parsed = schema.safeParse(req.body || {});
+    if (!parsed.success) return res.status(400).json({ message: 'Preferencias inválidas' });
+    await storage.updateUser(req.user.id, { notificationPrefs: JSON.stringify(parsed.data) } as any);
+    res.json({ ok: true });
+  });
+
   app.get('/api/auth/me', async (req, res) => {
     if (!req.user) return res.json({ user: null });
     const u: any = { ...req.user };
@@ -555,7 +669,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const secret = decrypt((freshUser as any).mfaSecret);
     if (!secret) return res.status(500).json({ message: 'Error de configuración MFA' });
-    const valid = await verifyTotpToken(parsed.data.totp, secret);
+    const valid = await verifyTotpToken(parsed.data.totp, secret, user.id);
     if (!valid) {
       logAudit(req, { action: 'mfa.enroll_verify_failed', actorUserId: user.id, result: 'denied' });
       return res.status(400).json({ message: 'Código TOTP incorrecto' });
@@ -580,7 +694,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const secret = decrypt((freshUser as any).mfaSecret);
     if (!secret) return res.status(400).json({ message: 'MFA no activado' });
-    const valid = await verifyTotpToken(parsed.data.totp, secret);
+    const valid = await verifyTotpToken(parsed.data.totp, secret, user.id);
     if (!valid) {
       logAudit(req, { action: 'mfa.disable_bad_totp', actorUserId: user.id, result: 'denied' });
       return res.status(400).json({ message: 'Código TOTP incorrecto' });
@@ -590,8 +704,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
-  // MFA second step: verify TOTP from challenge token → issue full session
-  app.post('/api/auth/mfa/verify', async (req, res) => {
+  // MFA second step: verify TOTP from challenge token → issue full session.
+  // Rate-limited (auth bucket: 20 / 15min / IP) AND per-challenge counter
+  // bounds an attacker who somehow obtained the challenge token to
+  // ~MFA_CHALLENGE_MAX_ATTEMPTS guesses before the token is invalidated.
+  app.post('/api/auth/mfa/verify', authLimiter, async (req, res) => {
     const schema = z.object({ challengeToken: z.string().min(1), totp: z.string().min(6).max(8) }).strict();
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: 'Datos inválidos' });
@@ -600,12 +717,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!challenge || challenge.expiresAt < Date.now()) {
       return res.status(401).json({ message: 'Desafío MFA expirado o inválido' });
     }
+    if (challenge.attempts >= MFA_CHALLENGE_MAX_ATTEMPTS) {
+      mfaChallenges.delete(challengeToken);
+      logAudit(req, { action: 'mfa.challenge_exhausted', result: 'denied', actorUserId: challenge.userId });
+      return res.status(429).json({ message: 'Demasiados intentos. Inicia sesión de nuevo.' });
+    }
+    challenge.attempts += 1;
     const user = await storage.getUser(challenge.userId);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
     const secret = decrypt((user as any).mfaSecret);
     if (!secret) return res.status(500).json({ message: 'Error de configuración MFA' });
     // Try TOTP first, then backup codes
-    let valid = await verifyTotpToken(totp, secret);
+    let valid = await verifyTotpToken(totp, secret, user.id);
     if (!valid) {
       // Try backup codes
       const storedCodes: string[] = JSON.parse((user as any).mfaBackupCodes || '[]');
@@ -852,6 +975,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     logoUrl: z.string().url().max(500).optional().nullable(),
     locale: z.string().max(20).optional(),
     recordingRetentionDays: z.number().int().min(1).max(3650).optional(),
+    // Onboarding-wizard progress — owner may save which step they're on.
+    onboardingStep: z.number().int().min(0).max(20).optional(),
+    onboardingComplete: z.boolean().optional(),
   }).strict();
 
   app.patch('/api/tenants/:id', requireAuth, async (req, res) => {
@@ -890,7 +1016,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       planSlug: z.enum(['inicia', 'crece', 'empresa', 'agencia']),
       email: z.string().email(),
       name: z.string().min(1),
-      password: z.string().min(6).optional(),
+      password: z.string().min(12).max(256).optional(),
       tenantName: z.string().optional(),
     });
     const parsed = schema.safeParse(req.body);
@@ -1059,6 +1185,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(400).json({ message: 'kind requerido' });
   });
 
+  // Mock test-call endpoint — in MVP/mock mode we don't actually dial Twilio,
+  // we just acknowledge the request so the onboarding step 6 "Llamarme ahora"
+  // and the in-app TestCallModal both have something real to call. The audit
+  // log preserves intent so admins can see who tested when.
+  app.post('/api/tenants/:id/test-call', requireAuth, async (req, res) => {
+    const id = +req.params.id;
+    if (!(await canAccessTenant(req.user, id))) return res.status(403).end();
+    const schema = z.object({ to: z.string().min(8).max(20) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Número requerido' });
+    const target = parsed.data.to.replace(/\s|-/g, '');
+    if (!/^\+?\d{10,15}$/.test(target)) {
+      return res.status(400).json({ message: 'Formato de número inválido' });
+    }
+    const callSid = `test_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    logAudit(req, {
+      action: 'tenant.test_call',
+      actorUserId: req.user!.id,
+      tenantId: id,
+      targetKind: 'phone_number',
+      targetId: target,
+      metadata: { callSid, mock: true },
+    });
+    res.json({ ok: true, callSid, to: target, mock: true });
+  });
+
   // Generic CRUD: services, faqs, appointments, messages, leads, calls
   function registerCRUD<T>(path: string, list: (tenantId: number) => Promise<any[]>, create: (data: any) => Promise<any>, update?: (id: number, patch: any) => Promise<any>, del?: (id: number) => Promise<void>) {
     app.get(`/api/tenants/:id/${path}`, requireAuth, async (req, res) => {
@@ -1071,18 +1223,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!(await canAccessTenant(req.user, id))) return res.status(403).end();
       res.json(await create({ ...req.body, tenantId: id }));
     });
+    // HIGH-8 (IDOR): before mutating an item, verify it actually belongs to the tenant
+    // in the URL by checking the tenant's list. This blocks tenant-A users from
+    // patching/deleting tenant-B's services/faqs/appointments/etc. by guessing IDs.
+    async function itemBelongsToTenant(tenantId: number, itemId: number): Promise<boolean> {
+      try {
+        const items = await list(tenantId);
+        return items.some((it: any) => it && it.id === itemId);
+      } catch {
+        return false;
+      }
+    }
     if (update) {
       app.patch(`/api/tenants/:id/${path}/:itemId`, requireAuth, async (req, res) => {
         const id = +req.params.id;
         if (!(await canAccessTenant(req.user, id))) return res.status(403).end();
-        res.json(await update(+req.params.itemId, req.body));
+        const itemId = +req.params.itemId;
+        if (!(await itemBelongsToTenant(id, itemId))) {
+          logAudit(req, { action: `${path}.patch_idor_blocked`, tenantId: id, targetKind: path, targetId: String(itemId), result: 'denied' });
+          return res.status(404).json({ message: 'No encontrado' });
+        }
+        res.json(await update(itemId, req.body));
       });
     }
     if (del) {
       app.delete(`/api/tenants/:id/${path}/:itemId`, requireAuth, async (req, res) => {
         const id = +req.params.id;
         if (!(await canAccessTenant(req.user, id))) return res.status(403).end();
-        await del(+req.params.itemId);
+        const itemId = +req.params.itemId;
+        if (!(await itemBelongsToTenant(id, itemId))) {
+          logAudit(req, { action: `${path}.delete_idor_blocked`, tenantId: id, targetKind: path, targetId: String(itemId), result: 'denied' });
+          return res.status(404).json({ message: 'No encontrado' });
+        }
+        await del(itemId);
         res.json({ ok: true });
       });
     }
@@ -1218,8 +1391,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  // ───── MFA enforcement on high-impact routes ─────
+  // Every /api/admin/* request must come from a session whose user has
+  // MFA enrolled. Read endpoints there reveal cross-tenant PII; mutations
+  // can suspend/refund/impersonate. Billing portal opens a Stripe-hosted
+  // payment surface, so we also gate it.
+  //
+  // Registered AFTER auth/login routes so the login + MFA flow itself is
+  // unaffected. requireMfa returns 403 with {requireMfa:true} so the SPA
+  // can route the user to /app/seguridad to enroll.
+  app.use('/api/admin', requireAuth, requireMfa);
+
   // ----- Billing: portal + upgrade preflight -----
-  app.post('/api/billing/portal', requireAuth, async (req, res) => {
+  app.post('/api/billing/portal', requireAuth, requireMfa, async (req, res) => {
     const tenantId = req.user?.currentTenantId;
     const returnUrl = req.body?.returnUrl || `${config.PUBLIC_APP_URL}/#/app/facturacion`;
     if (stripeMode !== 'live') {
@@ -1563,8 +1747,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         logAudit(req, { action: 'webhook.vapi_signature_invalid', result: 'denied' });
         return res.status(401).json({ message: 'Invalid signature' });
       }
-    } else if (!sig) {
-      console.warn('[webhook/vapi] missing signature (mock mode — accepting)');
+    } else {
+      // HIGH-7: in mock mode, require a shared MOCK_WEBHOOK_SECRET header so the
+      // public webhook endpoint cannot be driven by anonymous callers in production.
+      const mockSecret = process.env.MOCK_WEBHOOK_SECRET;
+      const provided = req.headers['x-mock-webhook-secret'] as string | undefined;
+      if (mockSecret) {
+        const a = Buffer.from(provided || '');
+        const b = Buffer.from(mockSecret);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+          logAudit(req, { action: 'webhook.vapi_mock_secret_invalid', result: 'denied' });
+          return res.status(401).json({ message: 'Invalid mock webhook secret' });
+        }
+      } else if (!sig) {
+        console.warn('[webhook/vapi] missing signature and MOCK_WEBHOOK_SECRET unset (mock mode — accepting)');
+      }
     }
     logAudit(req, { action: 'webhook.vapi_received', metadata: { type: req.body?.message?.type } });
     const payload = req.body;
@@ -1621,7 +1818,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(401).json({ message: 'Invalid signature' });
       }
     } else {
-      if (!sig) console.warn('[webhook/stripe] missing signature (mock mode — accepting)');
+      // HIGH-7: in mock mode, require MOCK_WEBHOOK_SECRET so this endpoint cannot be
+      // anonymously hit in a non-live deployment to inject fake subscription events.
+      const mockSecret = process.env.MOCK_WEBHOOK_SECRET;
+      const provided = req.headers['x-mock-webhook-secret'] as string | undefined;
+      if (mockSecret) {
+        const a = Buffer.from(provided || '');
+        const b = Buffer.from(mockSecret);
+        if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+          logAudit(req, { action: 'webhook.stripe_mock_secret_invalid', result: 'denied' });
+          return res.status(401).json({ message: 'Invalid mock webhook secret' });
+        }
+      } else if (!sig) {
+        console.warn('[webhook/stripe] missing signature and MOCK_WEBHOOK_SECRET unset (mock mode — accepting)');
+      }
       // Mock-mode: accept the JSON body verbatim so manual tests can drive the handlers.
       event = req.body;
       logAudit(req, { action: 'webhook.stripe_received_mock', metadata: { type: event?.type } });
@@ -1899,8 +2109,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!tenantId) return res.status(400).json({ message: 'tenant_id requerido' });
     if (!(await canAccessTenant(req.user, tenantId))) return res.status(403).json({ message: 'Sin acceso' });
     // Embed tenant + a short-lived nonce in `state` so the callback can verify origin.
+    // The nonce is also stored server-side (oauthNonces) and consumed on callback to
+    // prevent CSRF/replay: any callback whose `state.n` we don't recognize is rejected.
     const nonce = crypto.randomBytes(16).toString('hex');
     const state = Buffer.from(JSON.stringify({ t: tenantId, n: nonce, u: req.user!.id })).toString('base64url');
+    oauthNonces.set(nonce, { tenantId, userId: req.user!.id, expiresAt: Date.now() + 10 * 60_000 });
     const url = googleCalendar.getAuthUrl(tenantId, state);
     logAudit(req, { action: 'integrations.google.authorize_started', tenantId });
     if (req.query.redirect === '1') return res.redirect(url);
@@ -1926,6 +2139,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const tenantId = Number(state.t);
     if (!tenantId) return res.status(400).send('Invalid tenant');
+    // HIGH-5 fix: verify single-use OAuth nonce (set by /authorize). Reject if missing,
+    // expired, or doesn't match the tenant in state. Delete on consume to prevent replay.
+    const nonce = typeof state.n === 'string' ? state.n : '';
+    const nonceRec = nonce ? oauthNonces.get(nonce) : undefined;
+    if (!nonceRec || nonceRec.expiresAt < Date.now() || nonceRec.tenantId !== tenantId) {
+      if (nonce) oauthNonces.delete(nonce);
+      return res.status(400).send('Invalid or expired OAuth state');
+    }
+    oauthNonces.delete(nonce);
 
     try {
       const tokens = await googleCalendar.exchangeCode(tenantId, code);
@@ -2136,8 +2358,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // ============ CRON: recording purge (token-protected) ============
   app.post('/api/cron/purge-old-recordings', async (req, res) => {
-    const token = (req.headers['x-cron-token'] as string) || (req.query.token as string);
-    if (!config.MARCALL_CRON_SECRET || token !== config.MARCALL_CRON_SECRET) {
+    // LOW-6: header-only auth. Query-string fallback removed so the token can't
+    // leak via referrer headers, browser history, or proxy access logs.
+    const token = (req.headers['x-cron-token'] as string) || '';
+    const expected = config.MARCALL_CRON_SECRET || '';
+    const a = Buffer.from(token);
+    const b = Buffer.from(expected);
+    if (!expected || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
       logAudit(req, { action: 'cron.purge_unauthorized', result: 'denied' });
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -2463,16 +2690,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // If audit rows have a `hash` column, verify chain. Otherwise report ordering only.
       const hasHashCol = rows.length > 0 && Object.prototype.hasOwnProperty.call(rows[0], 'hash');
       if (hasHashCol) {
-        let prev = '';
+        // MED-2: must use the SAME formula as server/lib/audit.ts:computeAuditHash.
+        // Formula: sha256(prevHash + JSON.stringify(rowData)) where rowData has the
+        // exact field set written at insert time. Mismatched formulas here would
+        // cause every chain verification to falsely fail.
+        let prev: string | null = null;
         for (const r of rows as any[]) {
-          const expected = crypto
+          const rowData = {
+            at: r.at ? new Date(r.at).toISOString() : '',
+            actorUserId: r.actorUserId ?? null,
+            actorIp: r.actorIp ?? null,
+            tenantId: r.tenantId ?? null,
+            action: r.action || '',
+            targetKind: r.targetKind ?? null,
+            targetId: r.targetId ?? null,
+            metadata: r.metadata ?? null,
+            result: r.result ?? 'success',
+          };
+          const expected: string = crypto
             .createHash('sha256')
-            .update(
-              [prev, r.action || '', r.actorUserId ?? '', r.targetId ?? '', r.at ? new Date(r.at).toISOString() : '']
-                .join('|'),
-            )
+            .update((prev ?? '') + JSON.stringify(rowData), 'utf8')
             .digest('hex');
-          if (r.prevHash && r.prevHash !== prev) {
+          if ((r.prevHash ?? null) !== prev) {
             verified = false; firstBreakAtId = r.id; breakReason = 'prev_hash_mismatch'; break;
           }
           if (r.hash && r.hash !== expected) {

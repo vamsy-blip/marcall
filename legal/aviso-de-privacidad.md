@@ -190,6 +190,10 @@ El uso continuado de los servicios de MARCALL con posterioridad a la publicació
 
 Si considera que su derecho a la protección de datos personales ha sido vulnerado por alguna conducta de MARCALL, puede presentar una queja o denuncia ante el **Instituto Nacional de Transparencia, Acceso a la Información y Protección de Datos Personales (INAI)**, cuyo sitio web es: **www.inai.org.mx**.
 
+## 11. Derechos del consumidor (PROFECO)
+
+MARCALL es un servicio prestado a personas morales y profesionistas. Cuando usted contrata MARCALL en calidad de consumidor final conforme a la **Ley Federal de Protección al Consumidor**, conserva todos los derechos que dicha ley le otorga, incluido el derecho a presentar quejas ante la **Procuraduría Federal del Consumidor (PROFECO)** en **www.gob.mx/profeco**. Para resolver cualquier inconformidad de consumo, puede contactarnos primero en **legal@careofaddress.com**.
+
 ---
 
 *MARCALL — marcall.careofaddress.com | privacidad@careofaddress.com*  

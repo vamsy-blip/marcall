@@ -58,7 +58,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-5 h-16 flex items-center border-b border-sidebar-border">
         <Link href="/" data-testid="link-brand-home"><MarcallWordmark size={24} /></Link>
       </div>
-      <nav className="flex-1 px-3 py-5 overflow-y-auto" data-testid="sidebar-nav">
+      <nav
+        className="flex-1 px-3 py-5 overflow-y-auto"
+        data-testid="sidebar-nav"
+        aria-label={t('tenant.sidebar.ariaLabel', 'Navegación principal')}
+      >
         {SECTIONS.map((sec, si) => (
           <div key={si} className={si > 0 ? 'mt-3 pt-3 border-t border-sidebar-border/60' : ''}>
             <div className="space-y-0.5">
@@ -68,6 +72,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 return (
                   <Link key={item.href} href={item.href} onClick={onNavigate} data-testid={testid}>
                     <span
+                      aria-current={active ? 'page' : undefined}
                       className={[
                         'flex items-center gap-3 px-3 py-2 rounded-md text-sm hover-elevate',
                         active
@@ -131,6 +136,15 @@ export function TenantLayout({ children, title }: { children: ReactNode; title?:
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
+      {/* Skip-link — first focusable element. Lets keyboard users jump past
+          the sidebar and topbar straight into page content. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:shadow-lg"
+        data-testid="link-skip-to-content"
+      >
+        {t('common.skipToContent', 'Saltar al contenido')}
+      </a>
       <aside
         className="hidden md:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
         data-testid="sidebar"
@@ -203,19 +217,23 @@ export function TenantLayout({ children, title }: { children: ReactNode; title?:
             <button
               onClick={toggle}
               className="size-9 rounded-md hover-elevate inline-flex items-center justify-center text-muted-foreground"
-              aria-label="Toggle theme"
+              aria-label={theme === 'dark' ? t('common.theme.toLight', 'Cambiar a tema claro') : t('common.theme.toDark', 'Cambiar a tema oscuro')}
               data-testid="button-theme"
             >
               {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
 
-            <button
-              className="size-9 rounded-md hover-elevate inline-flex items-center justify-center text-muted-foreground"
-              aria-label={t('tenant.topbar.notifications')}
-              data-testid="button-notifications"
-            >
-              <Bell className="size-4" />
-            </button>
+            {/* Notifications: link to configuracion#notifications since the
+                actual notifications drawer isn't wired yet. Keeping the bell
+                icon non-interactive would lie to keyboard/screen-reader users. */}
+            <Link href="/app/configuracion?tab=notifications" data-testid="button-notifications">
+              <span
+                className="size-9 rounded-md hover-elevate inline-flex items-center justify-center text-muted-foreground"
+                aria-label={t('tenant.topbar.notifications')}
+              >
+                <Bell className="size-4" />
+              </span>
+            </Link>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -248,7 +266,11 @@ export function TenantLayout({ children, title }: { children: ReactNode; title?:
         </header>
 
         <TrialBanners />
-        <main className="flex-1 p-5 md:p-8 overflow-x-hidden pb-24 md:pb-8">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 p-5 md:p-8 overflow-x-hidden pb-24 md:pb-8"
+        >
           <TrialBlocker tenant={currentTenant} subscription={subscription}>
             {children}
           </TrialBlocker>

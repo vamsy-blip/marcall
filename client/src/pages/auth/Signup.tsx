@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -138,16 +139,16 @@ export default function Signup() {
               </div>
               <div>
                 <Label htmlFor="industry">{t('auth.industry', { defaultValue: 'Industria' })}</Label>
-                <select
-                  id="industry"
-                  required
-                  value={form.industry}
-                  onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
-                  data-testid="select-industry"
-                >
-                  {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
+                {/* H-5 fix: use shadcn Select for visual consistency with the rest
+                    of the app, dark-mode support, and accessible keyboard nav. */}
+                <Select value={form.industry} onValueChange={(v) => setForm(f => ({ ...f, industry: v }))}>
+                  <SelectTrigger id="industry" className="mt-1" data-testid="select-industry">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INDUSTRIES.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="email">{t('auth.email')}</Label>

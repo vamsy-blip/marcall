@@ -195,8 +195,8 @@ export default function Citas() {
                             {format(new Date(a.startTime), 'PPP HH:mm', { locale: dateLocale })} · <span className="font-mono">{a.callerPhone}</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className={`text-xs capitalize ${STATUS_VARIANTS[a.status] || ''}`}>
-                          {a.status}
+                        <Badge variant="outline" className={`text-xs ${STATUS_VARIANTS[a.status] || ''}`}>
+                          {String(t(`tenant.citas.status${a.status.charAt(0).toUpperCase() + a.status.slice(1).replace(/_/g, '')}`, a.status))}
                         </Badge>
                       </button>
                     ))}

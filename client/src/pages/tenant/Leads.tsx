@@ -3,9 +3,10 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
-  PointerSensor, useSensor, useSensors,
+  PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -47,7 +48,7 @@ function LeadCard({ lead, onClick }: { lead: any; onClick: () => void }) {
       <Card className="border-card-border hover-elevate cursor-pointer">
         <CardContent className="p-3">
           <div className="flex items-start gap-2">
-            <button {...listeners} className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing pt-0.5" data-testid={`drag-lead-${lead.id}`}>
+            <button {...listeners} className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing pt-0.5" data-testid={`drag-lead-${lead.id}`} aria-label={`Drag lead ${lead.name || lead.id}`}>
               <GripVertical className="size-3.5" />
             </button>
             <div className="flex-1 min-w-0" onClick={onClick}>
@@ -105,7 +106,10 @@ export default function Leads() {
   const [drawer, setDrawer] = useState<any>(null);
   const [note, setNote] = useState('');
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const { data: leads = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/tenants', tid, 'leads'],
@@ -151,9 +155,15 @@ export default function Leads() {
 
   const saveNote = () => {
     if (!drawer || !note.trim()) return;
-    updateLead.mutate({ id: drawer.id, data: { notes: note } });
-    toast({ title: t('common.saved') });
-    setNote('');
+    updateLead.mutate(
+      { id: drawer.id, data: { notes: note } },
+      {
+        onSuccess: () => {
+          toast({ title: t('common.saved') });
+          setNote('');
+        },
+      },
+    );
   };
 
   return (

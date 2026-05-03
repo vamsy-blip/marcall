@@ -15,6 +15,10 @@ La versión v1.0 original está archivada en:
 
 Por razones de continuidad histórica, si necesita hacer referencia a los Términos aceptados bajo el dominio anterior, consulte el archivo histórico mencionado o contacte a **legal@careofaddress.com**.
 
+## Derechos del consumidor (PROFECO)
+
+MARCALL está dirigido a personas morales y profesionistas. Cuando usted contrate MARCALL como consumidor final, conservará todos los derechos que la **Ley Federal de Protección al Consumidor** le otorga, incluido el derecho a presentar quejas ante la **Procuraduría Federal del Consumidor (PROFECO)** en **www.gob.mx/profeco**. Antes de iniciar cualquier procedimiento, le invitamos a contactarnos en **legal@careofaddress.com** para resolver la inconformidad de manera directa.
+
 ---
 
 *MARCALL — marcall.careofaddress.com*  

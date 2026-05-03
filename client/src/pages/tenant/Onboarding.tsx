@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -48,6 +48,10 @@ export default function Onboarding() {
   const { t } = useTranslation();
   const tenantId = user?.currentTenantId;
   const [step, setStep] = useState(0);
+  // J-10: per-field validation errors for step 0
+  const [bizErr, setBizErr] = useState<{ name?: string; transferNumber?: string }>({});
+  // J-17: test-call state
+  const [testCallPending, setTestCallPending] = useState(false);
 
   const { data: tenant } = useQuery<any>({ queryKey: ['/api/tenants', tenantId], enabled: !!tenantId });
   const { data: assistant } = useQuery<any>({ queryKey: ['/api/tenants', tenantId, 'assistant'], enabled: !!tenantId });
@@ -121,9 +125,11 @@ export default function Onboarding() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/tenants', tenantId, 'numbers'] }),
   });
 
-  // load existing tenant data
-  useState(() => {
-    if (tenant && !biz.name) {
+  // C-3 fix: hydrate `biz` from the loaded tenant exactly once when it arrives.
+  // Previous version called useState(() => ...) (a no-op) AND did a setState during
+  // render — both wrong. useEffect with [tenant] dependency is the correct pattern.
+  useEffect(() => {
+    if (tenant && biz.name === '') {
       setBiz({
         name: tenant.name || '',
         industry: tenant.industry || 'Otro',
@@ -132,26 +138,89 @@ export default function Onboarding() {
         transferNumber: tenant.transferNumber || '',
       });
     }
-  });
+    // J-8: hydrate the persisted onboarding step from the tenant record so
+    // an interrupted user resumes where they left off (across refresh OR device).
+    if (tenant && typeof tenant.onboardingStep === 'number' && tenant.onboardingStep > 0 && tenant.onboardingStep < STEPS.length) {
+      setStep(tenant.onboardingStep);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant]);
 
-  // sync from server when loaded
-  if (tenant && biz.name === '' && tenant.name) {
-    setBiz({
-      name: tenant.name, industry: tenant.industry || 'Otro',
-      addressLine: tenant.addressLine || '', timezone: tenant.timezone || 'America/Monterrey',
-      transferNumber: tenant.transferNumber || '',
+  // J-8: every time `step` advances, persist it to the tenant so a refresh
+  // resumes from the right place. Fire-and-forget — we don't want to block
+  // the navigation on this side-channel save.
+  useEffect(() => {
+    if (!tenantId || step === 0) return;
+    apiRequest('PATCH', `/api/tenants/${tenantId}`, { onboardingStep: step }).catch(() => {
+      /* non-critical — we already advanced the in-memory step */
     });
-  }
+  }, [step, tenantId]);
+
+  // J-10: validate step 0 inline. Returns true when the form is OK.
+  const validateBiz = (): boolean => {
+    const errs: { name?: string; transferNumber?: string } = {};
+    if (!biz.name || biz.name.trim().length < 2) {
+      errs.name = t('onboarding.errors.nameRequired', 'Ingresa el nombre de tu negocio (mínimo 2 caracteres).');
+    }
+    if (biz.transferNumber && !/^\+?\d{10,15}$/.test(biz.transferNumber.replace(/\s|-/g, ''))) {
+      errs.transferNumber = t('onboarding.errors.transferInvalid', 'Número inválido. Usa formato +5281xxxxxxxx.');
+    }
+    setBizErr(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const next = async () => {
-    if (step === 0) await saveTenant.mutateAsync();
-    if (step === 1 || step === 2) await saveAssistant.mutateAsync();
+    // J-9: wrap each save in try/catch so a failed PATCH surfaces as a toast
+    // instead of leaving the Continuar button as a no-op black hole.
+    try {
+      if (step === 0) {
+        if (!validateBiz()) return;
+        await saveTenant.mutateAsync();
+      }
+      if (step === 1 || step === 2) await saveAssistant.mutateAsync();
+    } catch {
+      toast({ title: t('common.saveError'), variant: 'destructive' });
+      return;
+    }
     if (step === STEPS.length - 1) {
-      toast({ title: '¡Todo listo!', description: 'Su recepcionista está activa.' });
+      // Mark onboarding complete so we don't redirect back here next login.
+      apiRequest('PATCH', `/api/tenants/${tenantId}`, { onboardingComplete: true, onboardingStep: STEPS.length }).catch(() => {});
+      toast({
+        title: t('onboarding.completeTitle', '¡Todo listo!'),
+        description: t('onboarding.completeDesc', 'Su recepcionista está activa.'),
+      });
       setLocation('/app');
       return;
     }
     setStep(s => Math.min(STEPS.length - 1, s + 1));
+  };
+
+  // J-17: wire the "Llámame ahora" button on step 6 to the real test-call endpoint.
+  const triggerTestCall = async () => {
+    const target = biz.transferNumber?.trim();
+    if (!target) {
+      toast({
+        title: t('onboarding.testCall.missingNumber', 'Configura tu número en el paso 1'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    setTestCallPending(true);
+    try {
+      await apiRequest('POST', `/api/tenants/${tenantId}/test-call`, { to: target });
+      toast({
+        title: t('onboarding.testCall.placedTitle', 'Llamada en curso'),
+        description: t('onboarding.testCall.placedDesc', 'Te marcaremos en unos segundos al {{number}}', { number: target }),
+      });
+    } catch {
+      toast({
+        title: t('onboarding.testCall.errorTitle', 'No se pudo iniciar la llamada'),
+        description: t('onboarding.testCall.errorDesc', 'Verifica el número o inténtalo de nuevo.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setTestCallPending(false);
+    }
   };
 
   const playVoiceSample = (voiceId: string) => {
@@ -206,7 +275,19 @@ export default function Onboarding() {
               <CardContent className="p-6 space-y-5">
                 <div>
                   <Label htmlFor="bn">Nombre del negocio</Label>
-                  <Input id="bn" value={biz.name} onChange={e => setBiz({ ...biz, name: e.target.value })} placeholder="Tu Negocio S.A. de C.V." data-testid="input-biz-name" />
+                  <Input
+                    id="bn"
+                    value={biz.name}
+                    onChange={e => { setBiz({ ...biz, name: e.target.value }); if (bizErr.name) setBizErr(prev => ({ ...prev, name: undefined })); }}
+                    placeholder="Tu Negocio S.A. de C.V."
+                    data-testid="input-biz-name"
+                    aria-invalid={!!bizErr.name}
+                    aria-describedby={bizErr.name ? 'bn-err' : undefined}
+                    className={bizErr.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  />
+                  {bizErr.name && (
+                    <p id="bn-err" role="alert" className="text-xs text-destructive mt-1" data-testid="error-biz-name">{bizErr.name}</p>
+                  )}
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
@@ -238,8 +319,22 @@ export default function Onboarding() {
                 </div>
                 <div>
                   <Label htmlFor="tn">Número para transferencias humanas</Label>
-                  <Input id="tn" value={biz.transferNumber} onChange={e => setBiz({ ...biz, transferNumber: e.target.value })} placeholder="+528112345678" data-testid="input-transfer" />
-                  <p className="text-xs text-muted-foreground mt-1">Cuando una llamada necesita atención humana, se redirige a este número.</p>
+                  <Input
+                    id="tn"
+                    type="tel"
+                    value={biz.transferNumber}
+                    onChange={e => { setBiz({ ...biz, transferNumber: e.target.value }); if (bizErr.transferNumber) setBizErr(prev => ({ ...prev, transferNumber: undefined })); }}
+                    placeholder="+528112345678"
+                    data-testid="input-transfer"
+                    aria-invalid={!!bizErr.transferNumber}
+                    aria-describedby={bizErr.transferNumber ? 'tn-err' : 'tn-hint'}
+                    className={bizErr.transferNumber ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  />
+                  {bizErr.transferNumber ? (
+                    <p id="tn-err" role="alert" className="text-xs text-destructive mt-1" data-testid="error-transfer">{bizErr.transferNumber}</p>
+                  ) : (
+                    <p id="tn-hint" className="text-xs text-muted-foreground mt-1">Cuando una llamada necesita atención humana, se redirige a este número.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -538,8 +633,15 @@ Sí, aceptamos efectivo y tarjeta." data-testid="input-paste-faqs" />
                 <div className="size-20 rounded-full bg-primary/10 text-primary inline-flex items-center justify-center mb-5"><PhoneCall className="size-10" /></div>
                 <div className="font-display font-bold text-xl mb-2">Llamar a mi celular</div>
                 <p className="text-sm text-muted-foreground mb-5">{biz.transferNumber || '+52 (configure su número en el paso 1)'}</p>
-                <Button size="lg" className="gap-2" data-testid="button-test-call">
-                  <PhoneCall className="size-4" /> Llamarme ahora
+                <Button
+                  size="lg"
+                  className="gap-2"
+                  data-testid="button-test-call"
+                  onClick={triggerTestCall}
+                  disabled={testCallPending}
+                >
+                  {testCallPending ? <Loader2 className="size-4 animate-spin" /> : <PhoneCall className="size-4" />}
+                  {t('onboarding.testCall.cta', 'Llamarme ahora')}
                 </Button>
               </CardContent>
             </Card>

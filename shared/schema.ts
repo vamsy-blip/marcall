@@ -20,6 +20,12 @@ export const users = sqliteTable("users", {
   mfaSecret: text("mfa_secret"),   // AES-256-GCM encrypted TOTP secret
   mfaBackupCodes: text("mfa_backup_codes"), // JSON array of bcrypt-hashed single-use codes
   emailVerifiedAt: integer("email_verified_at", { mode: "timestamp" }),
+  // Forces a password reset on next login. Set to true for any account
+  // discovered with a non-bcrypt (legacy sha256) hash so we transparently
+  // upgrade them to bcrypt over time without locking anyone out.
+  mustResetPassword: integer("must_reset_password", { mode: "boolean" }).notNull().default(false),
+  // JSON-encoded notification preferences. Shape: {emailNewCall,emailNewAppt,emailDailyDigest,smsCritical}
+  notificationPrefs: text("notification_prefs"),
 });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -99,6 +105,9 @@ export const tenants = sqliteTable("tenants", {
   razonSocial: text("razon_social"),
   regimenFiscal: text("regimen_fiscal").default("601"),
   usoCfdi: text("uso_cfdi").default("G03"),
+  // Onboarding wizard progress — persisted so users can resume after refresh
+  onboardingStep: integer("onboarding_step").notNull().default(0),
+  onboardingComplete: integer("onboarding_complete", { mode: "boolean" }).notNull().default(false),
 });
 export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
 export type InsertTenant = z.infer<typeof insertTenantSchema>;

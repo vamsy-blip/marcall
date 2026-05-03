@@ -9,18 +9,29 @@ import { MarcallWordmark } from '@/components/Brand';
 import { Loader2, MailCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { LanguagePill } from '@/components/LanguageToggle';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ForgotPassword() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
+  // J-77: split onSettled into onSuccess/onError so a network failure shows a
+  // toast instead of the "check your email" confirmation screen — we do NOT
+  // want to lie to the user that their reset email was sent.
   const mut = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/auth/forgot', { email });
       return res.json();
     },
-    onSettled: () => setSubmitted(true),
+    onSuccess: () => setSubmitted(true),
+    onError: () =>
+      toast({
+        title: t('common.error', { defaultValue: 'Error' }),
+        description: t('common.saveError'),
+        variant: 'destructive',
+      }),
   });
 
   return (

@@ -27,8 +27,12 @@ services:
         value: "10000"      # Render's default web port
       - key: SQLITE_PATH
         value: /data/data.db
+      # Auto-seed runs once on first boot to populate plans + demo accounts.
+      # After v0.3 it is gated to false so production never re-seeds itself
+      # if the disk is rotated. Operators can flip this to "true", redeploy,
+      # then flip back to "false".
       - key: MARCALL_AUTOSEED
-        value: "true"
+        value: "false"
     disk:
       name: marcall-data
       mountPath: /data

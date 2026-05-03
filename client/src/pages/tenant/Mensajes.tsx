@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronDown, ChevronUp, Archive, Eye, CheckCircle2, Inbox } from 'lucide-react';
+import { ChevronDown, ChevronUp, Archive, Eye, CheckCircle2, Inbox, Mail } from 'lucide-react';
 
 const URG_COLOR: Record<string, string> = {
   urgent: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20',
@@ -111,7 +111,9 @@ export default function Mensajes() {
                           <div className="flex items-center gap-2 mb-1">
                             <div className="font-semibold text-sm" data-testid={`text-msg-name-${m.id}`}>{m.callerName || '—'}</div>
                             <span className="font-mono text-xs text-muted-foreground">{m.callerPhone}</span>
-                            <Badge variant="outline" className={`text-[10px] ${URG_COLOR[m.urgency] || URG_COLOR.normal}`}>{m.urgency}</Badge>
+                            <Badge variant="outline" className={`text-[10px] ${URG_COLOR[m.urgency] || URG_COLOR.normal}`}>
+                              {String(t(`tenant.mensajes.urgency.${m.urgency}`, m.urgency))}
+                            </Badge>
                             {m.intent && <Badge variant="outline" className="text-[10px]">{t('tenant.mensajes.intent')}: {m.intent}</Badge>}
                             {(m.status || 'new') === 'new' && <span className="size-2 rounded-full bg-primary" />}
                           </div>
@@ -125,9 +127,16 @@ export default function Mensajes() {
                         <div className="px-5 pb-5 pt-0 border-t border-border">
                           <div className="text-sm whitespace-pre-wrap mt-3" data-testid={`text-msg-body-${m.id}`}>{m.body}</div>
                           <div className="flex flex-wrap gap-2 mt-4">
-                            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateMsg.mutate({ id: m.id, data: { status: 'read' } }); }} data-testid={`button-read-${m.id}`}>
-                              <Eye className="size-3.5 mr-1.5" /> {t('tenant.mensajes.actionRead')}
-                            </Button>
+                            {(m.status || 'new') === 'new' ? (
+                              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateMsg.mutate({ id: m.id, data: { status: 'read' } }); }} data-testid={`button-read-${m.id}`}>
+                                <Eye className="size-3.5 mr-1.5" /> {t('tenant.mensajes.actionRead')}
+                              </Button>
+                            ) : (
+                              // J-50: let the user un-read so messages can re-surface in "Nuevos"
+                              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateMsg.mutate({ id: m.id, data: { status: 'new' } }); }} data-testid={`button-mark-new-${m.id}`}>
+                                <Mail className="size-3.5 mr-1.5" /> {t('tenant.mensajes.actionMarkNew', 'Marcar como nuevo')}
+                              </Button>
+                            )}
                             <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); updateMsg.mutate({ id: m.id, data: { status: 'replied' } }); toast({ title: t('common.saved') }); }} data-testid={`button-replied-${m.id}`}>
                               <CheckCircle2 className="size-3.5 mr-1.5" /> {t('tenant.mensajes.tabReplied')}
                             </Button>

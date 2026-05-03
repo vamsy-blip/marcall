@@ -61,7 +61,7 @@ export default function Equipo() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="font-display font-bold text-xl tracking-tight" data-testid="text-page-heading">{t('tenant.equipo.title')}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{members.length} {members.length === 1 ? 'miembro' : 'miembros'}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('tenant.equipo.memberCount', { count: members.length })}</p>
           </div>
           <Button onClick={() => setShowInvite(true)} data-testid="button-invite">
             <UserPlus className="size-4 mr-1.5" /> {t('tenant.equipo.invite')}

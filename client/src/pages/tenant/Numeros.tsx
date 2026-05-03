@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Phone, Plus, ShieldCheck, Clock, AlertCircle, XCircle } from 'lucide-react';
+import { Trans } from 'react-i18next';
 
 const KYC_BADGE: Record<string, { color: string; icon: any }> = {
   na: { color: 'bg-muted text-muted-foreground', icon: ShieldCheck },
@@ -95,8 +96,8 @@ export default function Numeros() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <Phone className="size-4 text-muted-foreground" />
-                          <span className="font-mono font-semibold text-base" data-testid={`text-e164-${n.id}`}>{n.e164 || '— pendiente —'}</span>
-                          <Badge variant="outline" className="text-[10px] capitalize">{(n.kind || '').replace('_', ' ')}</Badge>
+                          <span className="font-mono font-semibold text-base" data-testid={`text-e164-${n.id}`}>{n.e164 || <span className="italic text-muted-foreground font-normal">{t('tenant.numeros.numberPending')}</span>}</span>
+                          <Badge variant="outline" className="text-[10px]">{String(t(`tenant.numeros.kind${(n.kind || '').split('_').map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join('')}`, (n.kind || '').replace('_', ' ')))}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">{n.country}</div>
                       </div>
@@ -119,11 +120,14 @@ export default function Numeros() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="size-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-semibold text-sm">KYC en revisión</div>
+                  <div className="font-semibold text-sm">{t('tenant.numeros.kycBannerTitle')}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Para números mexicanos requerimos verificación KYC del IFT. Sube tus documentos en{' '}
-                    <a href="/#/app/configuracion" className="underline">Configuración → Datos</a>{' '}
-                    o escribe a <a href="mailto:support@careofaddress.com" className="underline">support@careofaddress.com</a>.
+                    <Trans
+                      i18nKey="tenant.numeros.kycBannerBody"
+                      components={[
+                        <a key="0" href={`mailto:support@careofaddress.com?subject=KYC%20documents%20-%20Tenant%20${tid ?? ''}`} className="underline" />,
+                      ]}
+                    />
                   </p>
                 </div>
               </div>
@@ -163,7 +167,7 @@ export default function Numeros() {
                 {country === 'MX' && (
                   <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
                     <div className="font-semibold mb-1">⚠ {t('tenant.numeros.wizardKyc')}</div>
-                    <p className="text-muted-foreground">Los números MX requieren verificación IFT (RFC + comprobante de domicilio). Plazo: 3-5 días hábiles.</p>
+                    <p className="text-muted-foreground">{t('tenant.numeros.wizardKycHint')}</p>
                   </div>
                 )}
               </>

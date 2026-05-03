@@ -80,7 +80,7 @@ function ContactSalesModal({
             </div>
             <div>
               <Label htmlFor="cs-phone">{t('contactSales.phone')}</Label>
-              <Input id="cs-phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="input-cs-phone" />
+              <Input id="cs-phone" type="tel" placeholder="+52 81 1234 5678" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="input-cs-phone" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -186,7 +186,7 @@ export default function Pricing() {
                     </ul>
                     <div className="space-y-2 pt-2">
                       <Link href={`/signup?plan=${p.slug}`} data-testid={`link-choose-${p.slug}`}>
-                        <Button variant={popular ? 'default' : 'outline'} className="w-full">
+                        <Button variant={popular || isEnterprise ? 'default' : 'outline'} className="w-full">
                           {t('marketing.choosePlan', { plan: p.name })}
                         </Button>
                       </Link>

@@ -42,6 +42,22 @@ export function initSentry(): boolean {
         }
         delete event.request.data;
       }
+      // Defense-in-depth: scrub email addresses and phone numbers from
+      // exception messages and breadcrumbs in case they slip through.
+      const EMAIL_RE = /[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/gi;
+      const PHONE_RE = /\+?\d[\d\s\-().]{8,}\d/g;
+      const scrub = (s: string) => s.replace(EMAIL_RE, '[email]').replace(PHONE_RE, '[phone]');
+      if (event.exception?.values) {
+        for (const v of event.exception.values) {
+          if (v.value) v.value = scrub(v.value);
+        }
+      }
+      if (event.message) event.message = scrub(event.message);
+      if (event.breadcrumbs) {
+        for (const b of event.breadcrumbs) {
+          if (b.message) b.message = scrub(b.message);
+        }
+      }
       return event;
     },
   });

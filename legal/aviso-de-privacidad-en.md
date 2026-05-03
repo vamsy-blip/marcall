@@ -194,6 +194,10 @@ Your continued use of MARCALL's services after a new version of this Notice take
 
 If you believe your right to personal data protection has been violated by any conduct of MARCALL, you may file a complaint with the **National Institute for Transparency, Access to Information and Personal Data Protection (INAI)** at **www.inai.org.mx**.
 
+## 11. Consumer rights (PROFECO)
+
+MARCALL is provided to legal entities and professionals. When you purchase MARCALL as a final consumer under the **Mexican Federal Consumer Protection Law** (Ley Federal de Protección al Consumidor), you retain all rights granted by that law, including the right to file complaints with the **Federal Consumer Protection Agency (PROFECO)** at **www.gob.mx/profeco**. For any consumer dispute, please contact us first at **legal@careofaddress.com**.
+
 ---
 
 *MARCALL — marcall.careofaddress.com | privacidad@careofaddress.com*

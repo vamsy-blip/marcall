@@ -19,7 +19,9 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Building2, Palette, Bell, Languages, ShieldAlert, Monitor, KeyRound, Plus, Trash2, Copy, LogOut, Calendar as CalendarIcon, Receipt, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Link } from 'wouter';
+import { Building2, Palette, Bell, Languages, ShieldAlert, Monitor, KeyRound, Plus, Trash2, Copy, LogOut, Calendar as CalendarIcon, Receipt, CheckCircle2, XCircle, Loader2, ShieldCheck, Lock } from 'lucide-react';
 
 export default function Configuracion() {
   const { t } = useTranslation();
@@ -44,6 +46,7 @@ export default function Configuracion() {
             <TabsTrigger value="idioma" data-testid="tab-idioma"><Languages className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabIdioma')}</TabsTrigger>
             <TabsTrigger value="datos" data-testid="tab-datos"><ShieldAlert className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabDatos')}</TabsTrigger>
             <TabsTrigger value="sesiones" data-testid="tab-sesiones"><Monitor className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabSesiones')}</TabsTrigger>
+            <TabsTrigger value="seguridad" data-testid="tab-seguridad"><ShieldCheck className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabSeguridad')}</TabsTrigger>
             <TabsTrigger value="api" data-testid="tab-api"><KeyRound className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabApi')}</TabsTrigger>
             <TabsTrigger value="integraciones" data-testid="tab-integraciones"><CalendarIcon className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabIntegraciones', 'Integraciones')}</TabsTrigger>
             <TabsTrigger value="fiscal" data-testid="tab-fiscal"><Receipt className="size-3.5 mr-1.5" />{t('tenant.configuracion.tabFiscal', 'Datos Fiscales')}</TabsTrigger>
@@ -55,6 +58,7 @@ export default function Configuracion() {
           <TabsContent value="idioma" className="mt-5"><IdiomaTab /></TabsContent>
           <TabsContent value="datos" className="mt-5"><DatosTab /></TabsContent>
           <TabsContent value="sesiones" className="mt-5"><SesionesTab /></TabsContent>
+          <TabsContent value="seguridad" className="mt-5"><SeguridadTab /></TabsContent>
           <TabsContent value="api" className="mt-5"><ApiTab tid={tid} /></TabsContent>
           <TabsContent value="integraciones" className="mt-5"><IntegracionesTab tid={tid} /></TabsContent>
           <TabsContent value="fiscal" className="mt-5"><FiscalTab tid={tid} /></TabsContent>
@@ -161,7 +165,20 @@ function MarcaTab({ tid }: { tid: any }) {
 function NotificacionesTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { data: serverPrefs, isLoading } = useQuery<any>({ queryKey: ['/api/me/notification-prefs'] });
   const [prefs, setPrefs] = useState({ emailNewCall: true, emailNewAppt: true, emailDailyDigest: false, smsCritical: false });
+  useEffect(() => { if (serverPrefs) setPrefs((p) => ({ ...p, ...serverPrefs })); }, [serverPrefs]);
+
+  const save = useMutation({
+    mutationFn: async (next: typeof prefs) => apiRequest('PUT', '/api/me/notification-prefs', next),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/me/notification-prefs'] });
+      toast({ title: t('common.saved') });
+    },
+    onError: () => toast({ title: t('common.saveError'), variant: 'destructive' }),
+  });
+
+  if (isLoading) return <Card className="border-card-border"><CardContent className="p-6"><Skeleton className="h-32" /></CardContent></Card>;
 
   return (
     <Card className="border-card-border"><CardContent className="p-6 space-y-1">
@@ -177,7 +194,7 @@ function NotificacionesTab() {
         </div>
       ))}
       <div className="flex justify-end pt-3">
-        <Button onClick={() => toast({ title: t('common.saved') })} data-testid="button-save-notificaciones">{t('common.save')}</Button>
+        <Button onClick={() => save.mutate(prefs)} disabled={save.isPending} data-testid="button-save-notificaciones">{t('common.save')}</Button>
       </div>
     </CardContent></Card>
   );
@@ -215,7 +232,7 @@ function IdiomaTab() {
   );
 }
 
-// DATOS (privacy)
+// DATOS (privacy / ARCO)
 function DatosTab() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -229,30 +246,109 @@ function DatosTab() {
   const rectify = useMutation({
     mutationFn: async () => apiRequest('POST', '/api/me/data-correction', { request: 'Solicitud de rectificación' }),
     onSuccess: () => toast({ title: t('common.saved') }),
+    onError: () => toast({ title: t('common.saveError'), variant: 'destructive' }),
   });
 
   const deleteData = useMutation({
     mutationFn: async () => apiRequest('POST', '/api/me/data-deletion', {}),
-    onSuccess: () => toast({ title: t('common.saved'), description: 'Equipo de privacidad confirmará por correo en 30 días.' }),
+    onSuccess: () => toast({ title: t('common.saved'), description: t('tenant.configuracion.arcoDeleteDesc') }),
+    onError: () => toast({ title: t('common.saveError'), variant: 'destructive' }),
   });
 
   return (
     <Card className="border-card-border"><CardContent className="p-6 space-y-3">
       <p className="text-xs text-muted-foreground">
-        Bajo la <a href="/#/legal/privacy" className="underline">Ley Federal de Protección de Datos Personales</a>, tienes derechos ARCO. También puedes contactar <a href="mailto:privacy@careofaddress.com" className="underline">privacy@careofaddress.com</a>.
+        Bajo la <a href="/#/legal/privacy" className="underline">Ley Federal de Protección de Datos Personales en Posesión de los Particulares</a> (LFPDPPP), tienes derechos ARCO: Acceso, Rectificación, Cancelación y Oposición. También puedes contactar <a href="mailto:privacy@careofaddress.com" className="underline">privacy@careofaddress.com</a>.
       </p>
       <div className="space-y-2 pt-3 border-t border-border">
-        <Button variant="outline" onClick={() => exportData.mutate()} disabled={exportData.isPending} className="w-full justify-start" data-testid="button-export">
-          {t('tenant.configuracion.exportData')}
-        </Button>
-        <Button variant="outline" onClick={() => rectify.mutate()} disabled={rectify.isPending} className="w-full justify-start" data-testid="button-rectify">
-          {t('tenant.configuracion.rectify')}
-        </Button>
-        <Button variant="outline" onClick={() => { if (confirm('¿Confirmas la solicitud de borrado? Esta acción es irreversible después de 30 días.')) deleteData.mutate(); }} className="w-full justify-start text-rose-600 dark:text-rose-400" data-testid="button-delete">
-          {t('tenant.configuracion.deleteData')}
-        </Button>
+        {/* Export */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-export">
+              {t('tenant.configuracion.arcoExportCta')}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('tenant.configuracion.arcoExportTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('tenant.configuracion.arcoExportDesc')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-export-cancel">{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => exportData.mutate()} data-testid="button-export-confirm">{t('common.confirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {/* Rectify */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="w-full justify-start" data-testid="button-rectify">
+              {t('tenant.configuracion.arcoRectifyCta')}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('tenant.configuracion.arcoRectifyTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('tenant.configuracion.arcoRectifyDesc')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-rectify-cancel">{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => rectify.mutate()} data-testid="button-rectify-confirm">{t('common.confirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        {/* Delete */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="w-full justify-start text-rose-600 dark:text-rose-400" data-testid="button-delete">
+              {t('tenant.configuracion.arcoDeleteCta')}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('tenant.configuracion.arcoDeleteTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('tenant.configuracion.arcoDeleteDesc')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-delete-cancel">{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteData.mutate()} className="bg-rose-600 hover:bg-rose-700" data-testid="button-delete-confirm">{t('common.confirm')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </CardContent></Card>
+  );
+}
+
+// SEGURIDAD (J-64) — links to MFA setup + sessions
+function SeguridadTab() {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const mfaEnabled = !!(user as any)?.mfaEnabled;
+  return (
+    <div className="space-y-4">
+      <Card className="border-card-border"><CardContent className="p-6 space-y-4">
+        <p className="text-xs text-muted-foreground">{t('tenant.configuracion.securityHint')}</p>
+        <div className="flex items-start justify-between gap-4 pt-3 border-t border-border">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="size-10 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Lock className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold flex items-center gap-2">
+                {t('tenant.configuracion.securityMfaTitle')}
+                {mfaEnabled && <Badge variant="outline" className="text-[10px]">{t('common.active')}</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{t('tenant.configuracion.securityMfaDesc')}</p>
+            </div>
+          </div>
+          <Link href="/app/security/mfa">
+            <Button variant="outline" size="sm" data-testid="button-mfa-setup">{t('tenant.configuracion.securityMfaCta')}</Button>
+          </Link>
+        </div>
+      </CardContent></Card>
+      <SesionesTab />
+    </div>
   );
 }
 
@@ -552,9 +648,27 @@ function ApiTab({ tid }: { tid: any }) {
                       {t('tenant.configuracion.lastUsed')}: {k.lastUsedAt ? format(new Date(k.lastUsedAt), "d MMM, HH:mm", { locale: dateLocale }) : t('tenant.configuracion.neverUsed')}
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { if (confirm('¿Revocar esta clave? No se puede deshacer.')) revoke.mutate(k.id); }} data-testid={`button-revoke-${k.id}`}>
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" data-testid={`button-revoke-${k.id}`} aria-label={t('tenant.configuracion.revokeKey', 'Revocar clave')}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('tenant.configuracion.revokeKeyTitle', '¿Revocar la clave {{name}}?', { name: k.name })}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('tenant.configuracion.revokeKeyBody', 'Las integraciones que la usen dejarán de funcionar inmediatamente. Esta acción no se puede deshacer.')}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => revoke.mutate(k.id)} className="bg-rose-600 hover:bg-rose-700">
+                          {t('common.confirm')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               ))}
             </div>

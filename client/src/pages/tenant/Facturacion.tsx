@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -9,9 +9,20 @@ import { useLang } from '@/components/LanguageProvider';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
+import { useTheme } from '@/components/ThemeProvider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { CreditCard, FileText, ExternalLink, Receipt, Sparkles, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -23,6 +34,7 @@ export default function Facturacion() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { lang } = useLang();
+  const { theme } = useTheme();
   const dateLocale = lang === 'en' ? enUS : es;
   const tid = user?.currentTenantId;
   const { toast } = useToast();
@@ -35,6 +47,7 @@ export default function Facturacion() {
   const { data: calls = [] } = useQuery<any[]>({ queryKey: ['/api/tenants', tid, 'calls'], enabled: !!tid });
 
   const currentPlan = useMemo(() => plans.find((p: any) => p.id === tenant?.planId), [plans, tenant]);
+  const [pendingPlanSlug, setPendingPlanSlug] = useState<string | null>(null);
 
   // Last 30 days usage chart from real call data
   const usageData = useMemo(() => {
@@ -85,10 +98,10 @@ export default function Facturacion() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tenants', tid, 'invoices'] });
-      toast({ title: t('common.saved', 'Solicitud enviada') });
+      toast({ title: t('tenant.facturacion.requestSent') });
     },
     onError: (err: any) => toast({
-      title: t('common.saveError', 'No se pudo emitir CFDI'),
+      title: t('tenant.facturacion.cfdiEmitError'),
       description: err?.message || '',
       variant: 'destructive',
     }),
@@ -108,7 +121,7 @@ export default function Facturacion() {
                 <div className="font-display font-bold text-2xl mt-1" data-testid="text-current-plan">{currentPlan?.name || '—'}</div>
                 {currentPlan && (
                   <div className="text-sm text-muted-foreground mt-1 tabular-nums">
-                    {formatMxn(currentPlan.priceMxnCents)} <span className="text-xs">/ mes</span>
+                    {formatMxn(currentPlan.priceMxnCents)} <span className="text-xs">{t('tenant.facturacion.perMonth')}</span>
                   </div>
                 )}
                 {subscription?.currentPeriodEnd && (
@@ -128,19 +141,37 @@ export default function Facturacion() {
             {usage && (
               <div className="mt-6 pt-6 border-t border-border">
                 <div className="flex items-baseline justify-between mb-2">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Minutos del mes</div>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">{t('tenant.facturacion.minutesThisMonth')}</div>
                   <div className="text-sm tabular-nums">
                     <span className="font-display font-bold">{usage.minutesUsed || 0}</span>
-                    <span className="text-muted-foreground"> / {usage.minutesIncluded || 0} min</span>
+                    <span className="text-muted-foreground"> / {usage.minutesIncluded || 0} {t('common.min')}</span>
                   </div>
                 </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${Math.min(100, ((usage.minutesUsed || 0) / Math.max(1, usage.minutesIncluded || 1)) * 100)}%` }}
-                    data-testid="progress-usage"
-                  />
-                </div>
+                {(() => {
+                  const used = usage.minutesUsed || 0;
+                  const inc = Math.max(1, usage.minutesIncluded || 1);
+                  const pct = (used / inc) * 100;
+                  const fillCls = pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-primary';
+                  return (
+                    <>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full ${fillCls} rounded-full transition-all`}
+                          style={{ width: `${Math.min(100, pct)}%` }}
+                          data-testid="progress-usage"
+                        />
+                      </div>
+                      {pct >= 80 && (
+                        <div className={`mt-2 text-xs ${pct >= 100 ? 'text-rose-700 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400'}`} data-testid="text-usage-warning">
+                          <AlertTriangle className="size-3 inline mr-1" />
+                          {pct >= 100
+                            ? t('tenant.facturacion.overageWarning', 'Has superado tu cuota incluida. Los minutos extra se facturarán al cierre del ciclo.')
+                            : t('tenant.facturacion.nearLimitWarning', 'Estás cerca del límite de tu plan. Considera cambiar de plan.')}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </CardContent>
@@ -151,7 +182,7 @@ export default function Facturacion() {
           <Card className="border-card-border">
             <CardContent className="p-6">
               <div className="text-sm font-semibold mb-1">{t('tenant.facturacion.upgrade')}</div>
-              <p className="text-xs text-muted-foreground mb-4">Elige el plan que mejor se adapte a tu volumen.</p>
+              <p className="text-xs text-muted-foreground mb-4">{t('tenant.facturacion.upgradeHelper')}</p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {plans.map((p: any) => {
                   const isCurrent = p.id === tenant?.planId;
@@ -159,15 +190,15 @@ export default function Facturacion() {
                     <button
                       key={p.slug}
                       type="button"
-                      onClick={() => !isCurrent && upgradeCheckout.mutate(p.slug)}
+                      onClick={() => !isCurrent && setPendingPlanSlug(p.slug)}
                       disabled={isCurrent || upgradeCheckout.isPending}
                       className={`text-left rounded-lg border p-4 transition ${isCurrent ? 'border-primary bg-primary/5' : 'border-card-border hover-elevate'}`}
                       data-testid={`button-plan-${p.slug}`}
                     >
                       <div className="font-display font-bold text-sm">{p.name}</div>
-                      <div className="font-display font-bold text-xl tabular-nums mt-1">{formatMxn(p.priceMxnCents)}<span className="text-xs text-muted-foreground font-normal">/mes</span></div>
-                      <div className="text-xs text-muted-foreground mt-1">{p.minutesIncluded} min incluidos</div>
-                      {isCurrent && <Badge variant="default" className="mt-2 text-[10px]">Plan actual</Badge>}
+                      <div className="font-display font-bold text-xl tabular-nums mt-1">{formatMxn(p.priceMxnCents)}<span className="text-xs text-muted-foreground font-normal">{t('tenant.facturacion.perMonthShort')}</span></div>
+                      <div className="text-xs text-muted-foreground mt-1">{t('tenant.facturacion.minutesIncluded', { n: p.minutesIncluded })}</div>
+                      {isCurrent && <Badge variant="default" className="mt-2 text-[10px]">{t('tenant.facturacion.currentPlanBadge')}</Badge>}
                     </button>
                   );
                 })}
@@ -181,7 +212,7 @@ export default function Facturacion() {
           <CardContent className="p-6">
             <div className="text-sm font-semibold mb-4">{t('tenant.facturacion.usageChart')}</div>
             <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer key={theme} width="100%" height="100%">
                 <LineChart data={usageData}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} />
@@ -203,7 +234,7 @@ export default function Facturacion() {
             ) : invoices.length === 0 ? (
               <div className="py-10 text-center">
                 <Receipt className="size-8 mx-auto text-muted-foreground/40 mb-2" />
-                <div className="text-sm text-muted-foreground">No hay facturas todavía. Aparecerán aquí cuando se procese tu primera renovación.</div>
+                <div className="text-sm text-muted-foreground">{t('tenant.facturacion.invoicesEmpty')}</div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -223,7 +254,7 @@ export default function Facturacion() {
                         <td className="px-3 py-3 tabular-nums">{inv.date ? format(new Date(inv.date), 'd MMM yyyy', { locale: dateLocale }) : '—'}</td>
                         <td className="px-3 py-3 tabular-nums">{formatMxn(inv.amountMxnCents)}</td>
                         <td className="px-3 py-3">
-                          <Badge variant={inv.status === 'paid' ? 'default' : 'outline'} className="capitalize">{inv.status}</Badge>
+                          <Badge variant={inv.status === 'paid' ? 'default' : 'outline'} className="capitalize">{String(t(`tenant.facturacion.status.${inv.status}`, inv.status))}</Badge>
                         </td>
                         <td className="px-3 py-3">
                           {inv.cfdiPdfUrl ? (
@@ -244,7 +275,7 @@ export default function Facturacion() {
                                 title={inv.cfdiError}
                                 data-testid={`text-cfdi-error-${inv.id}`}
                               >
-                                <AlertTriangle className="size-3" /> {t('tenant.facturacion.cfdiFailed', 'Pendiente')}
+                                <AlertTriangle className="size-3" /> {t('tenant.facturacion.cfdiFailed')}
                               </span>
                               {inv.status === 'paid' && (
                                 <Button
@@ -254,7 +285,7 @@ export default function Facturacion() {
                                   onClick={() => retryCfdi.mutate(inv.id)}
                                   disabled={retryCfdi.isPending}
                                   data-testid={`button-retry-cfdi-${inv.id}`}
-                                  aria-label="Retry CFDI"
+                                  aria-label={t('tenant.facturacion.retryCfdi')}
                                 >
                                   <RefreshCw className="size-3" />
                                 </Button>
@@ -269,7 +300,7 @@ export default function Facturacion() {
                               disabled={retryCfdi.isPending}
                               data-testid={`button-emit-cfdi-${inv.id}`}
                             >
-                              {t('tenant.facturacion.emitCfdi', 'Emitir')}
+                              {t('tenant.facturacion.emitCfdi')}
                             </Button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -291,6 +322,29 @@ export default function Facturacion() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!pendingPlanSlug} onOpenChange={(o) => !o && setPendingPlanSlug(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('tenant.facturacion.changePlanTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('tenant.facturacion.changePlanDesc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-plan-cancel">{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingPlanSlug) {
+                  upgradeCheckout.mutate(pendingPlanSlug);
+                  setPendingPlanSlug(null);
+                }
+              }}
+              data-testid="button-plan-confirm"
+            >
+              {t('common.continue')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TenantLayout>
   );
 }

@@ -45,6 +45,11 @@
     "remove": "Eliminar",
     "saved": "Guardado",
     "saveError": "No se pudo guardar",
+    "skipToContent": "Saltar al contenido",
+    "theme": {
+      "toLight": "Cambiar a tema claro",
+      "toDark": "Cambiar a tema oscuro"
+    },
     "today": "Hoy",
     "minutes": "minutos",
     "min": "min",
@@ -471,7 +476,21 @@
     "spanishLabel": "Español (México)",
     "englishLabel": "English (US)",
     "bilingualNote": "Tu IA atenderá en ambos idiomas — agrega ambas versiones para mejor calidad.",
-    "callMeNow": "Llamarme ahora para probar"
+    "callMeNow": "Llamarme ahora para probar",
+    "errors": {
+      "nameRequired": "Ingresa el nombre del negocio (mínimo 2 caracteres).",
+      "transferInvalid": "Ingresa un número válido en formato internacional (ej. +52 55 1234 5678)."
+    },
+    "completeTitle": "Onboarding completado",
+    "completeDesc": "Tu asistente está listo. Te llevamos al panel.",
+    "testCall": {
+      "cta": "Llamarme ahora para probar",
+      "missingNumber": "Agrega un número de transferencia en el paso anterior antes de probar.",
+      "placedTitle": "Llamada en camino",
+      "placedDesc": "Recibirás una llamada en {{number}} en unos segundos.",
+      "errorTitle": "No se pudo iniciar la llamada",
+      "errorDesc": "Intenta de nuevo en un momento."
+    }
   },
   "legal": {
     "privacy": "Aviso de privacidad",
@@ -481,7 +500,19 @@
   "cookies": {
     "banner": "Usamos cookies esenciales para autenticación y funcionalidad. No utilizamos cookies de terceros para publicidad.",
     "accept": "Aceptar",
-    "learn": "Saber más"
+    "learn": "Saber más",
+    "title": "Preferencias de cookies",
+    "body": "Usamos cookies esenciales para autenticación y funcionalidad. Puedes elegir qué categorías permitir.",
+    "acceptAll": "Aceptar todo",
+    "rejectAll": "Rechazar todo",
+    "customize": "Personalizar",
+    "strictly": "Estrictamente necesarias",
+    "strictlyDesc": "Requeridas para iniciar sesión y mantener tu sesión segura. No se pueden desactivar.",
+    "analytics": "Analíticas",
+    "analyticsDesc": "Nos ayudan a entender cómo se usa el producto.",
+    "marketing": "Marketing",
+    "marketingDesc": "Personalizan comunicaciones y ofertas.",
+    "save": "Guardar preferencias"
   },
   "security": {
     "navTitle": "Seguridad",
@@ -630,6 +661,7 @@
       "logout": "Cerrar sesión"
     },
     "sidebar": {
+      "ariaLabel": "Navegación principal",
       "resumen": "Resumen",
       "llamadas": "Llamadas",
       "citas": "Citas",
@@ -713,8 +745,15 @@
       "actionArchive": "Archivar",
       "actionReply": "Responder por WhatsApp",
       "actionEscalate": "Convertir en lead",
+      "actionMarkNew": "Marcar como nuevo",
       "intent": "Intención",
-      "empty": "No hay mensajes."
+      "empty": "No hay mensajes.",
+      "urgency": {
+        "urgent": "Urgente",
+        "high": "Alta",
+        "normal": "Normal",
+        "low": "Baja"
+      }
     },
     "leads": {
       "title": "Leads",
@@ -781,6 +820,9 @@
       "copyMonday": "Copiar lunes a todos",
       "holidays": "Días no laborables",
       "transferNumber": "Número de transferencia humana",
+      "openAt": "Hora de apertura ({{day}})",
+      "closeAt": "Hora de cierre ({{day}})",
+      "closed": "Cerrado",
       "afterHours": "Comportamiento fuera de horario",
       "afterHoursMsg": "Tomar mensaje",
       "afterHoursForward": "Transferir a número",
@@ -812,10 +854,18 @@
       "wizardCountry": "País",
       "wizardArea": "Código de área",
       "wizardKyc": "Documentos KYC",
+      "wizardKycHint": "Los números MX requieren verificación IFT (RFC + comprobante de domicilio). Plazo: 3-5 días hábiles.",
+      "kycPending": "En revisión",
       "kycSubmitted": "Enviado",
       "kycReview": "En revisión",
       "kycApproved": "Aprobado",
       "kycRejected": "Rechazado",
+      "kycBannerTitle": "KYC en revisión",
+      "kycBannerBody": "Para números mexicanos requerimos verificación KYC del IFT. Envía tu RFC y comprobante de domicilio a <0>support@careofaddress.com</0> con el ID de tu cuenta.",
+      "numberPending": "Asignación pendiente",
+      "kindMxManaged": "Número mexicano administrado",
+      "kindDemoUs": "Demo (US)",
+      "kindByoTwilio": "Twilio propio",
       "monthlyCost": "Costo mensual",
       "tied": "Asistente asignado",
       "empty": "Aún no tienes números asignados."
@@ -837,6 +887,8 @@
       "mfaOff": "Inactivo",
       "inviteSent": "Invitación enviada (mock)",
       "removeConfirm": "¿Eliminar a este miembro?",
+      "memberCount_one": "{{count}} miembro",
+      "memberCount_other": "{{count}} miembros",
       "empty": "Solo tú estás en este equipo."
     },
     "facturacion": {
@@ -844,6 +896,7 @@
       "currentPlan": "Plan actual",
       "renewsOn": "Renueva el {{date}}",
       "upgrade": "Cambiar plan",
+      "upgradeHelper": "Elige el plan que mejor se adapte a tu volumen.",
       "manageStripe": "Administrar en Stripe",
       "invoices": "Facturas",
       "invDate": "Fecha",
@@ -851,9 +904,30 @@
       "invStatus": "Estado",
       "downloadPdf": "PDF",
       "cfdi": "Solicitar CFDI",
+      "cfdiFailed": "Pendiente",
+      "emitCfdi": "Emitir",
       "paymentMethods": "Métodos de pago",
       "usageChart": "Uso (últimos 30 días)",
-      "projection": "Al ritmo actual, llegarás a {{n}} / {{q}} min este mes."
+      "projection": "Al ritmo actual, llegarás a {{n}} / {{q}} min este mes.",
+      "minutesThisMonth": "Minutos del mes",
+      "perMonth": "/ mes",
+      "perMonthShort": "/mes",
+      "minutesIncluded": "{{n}} min incluidos",
+      "currentPlanBadge": "Plan actual",
+      "noInvoices": "No hay facturas todavía. Aparecerán aquí cuando se procese tu primera renovación.",
+      "requestSent": "Solicitud enviada",
+      "cfdiEmitError": "No se pudo emitir CFDI",
+      "invoicesEmpty": "No hay facturas todavía. Aparecerán aquí cuando se procese tu primera renovación.",
+      "retryCfdi": "Reintentar CFDI",
+      "changePlanTitle": "Cambiar de plan",
+      "changePlanDesc": "Te llevaremos a Stripe para confirmar el cambio. El cobro se prorratea automáticamente.",
+      "status": {
+        "paid": "Pagada",
+        "unpaid": "Sin pagar",
+        "open": "Abierta",
+        "void": "Anulada",
+        "uncollectible": "Incobrable"
+      }
     },
     "config": {
       "title": "Configuración",
@@ -927,6 +1001,20 @@
       "neverUsed": "Nunca",
       "revoke": "Revocar",
       "copySecret": "Copia esta clave ahora — no se mostrará de nuevo.",
+      "tabSeguridad": "Seguridad",
+      "securityHint": "Protege tu cuenta con autenticación de dos factores y revisa tus sesiones activas.",
+      "securityMfaTitle": "Autenticación de dos factores (2FA)",
+      "securityMfaDesc": "Añade un código de tu app autenticadora cada vez que inicies sesión.",
+      "securityMfaCta": "Configurar 2FA",
+      "arcoExportTitle": "Exportar mis datos",
+      "arcoExportDesc": "Recibirás por correo un archivo ZIP con todos tus datos personales en un máximo de 7 días hábiles, conforme a la LFPDPPP.",
+      "arcoExportCta": "Solicitar exportación",
+      "arcoRectifyTitle": "Solicitar rectificación",
+      "arcoRectifyDesc": "Si algún dato personal es inexacto o está incompleto, podemos corregirlo. Te contactaremos para verificar la información antes de aplicar cambios.",
+      "arcoRectifyCta": "Solicitar rectificación",
+      "arcoDeleteTitle": "Solicitar eliminación",
+      "arcoDeleteDesc": "Procesaremos tu solicitud bajo LFPDPPP en un máximo de 20 días hábiles. Algunos datos pueden conservarse por obligaciones fiscales o de auditoría. Esta acción es irreversible una vez completada.",
+      "arcoDeleteCta": "Solicitar eliminación",
       "sessionsHint": "Dispositivos activos en tu cuenta. Cierra sesión donde no reconozcas.",
       "thisDevice": "Este dispositivo",
       "revokeSession": "Cerrar sesión",

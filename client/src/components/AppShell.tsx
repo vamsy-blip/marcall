@@ -48,6 +48,14 @@ export function AppShell({
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
+      {/* M-1 fix: skip-to-content link visible on focus for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:shadow-lg"
+        data-testid="link-skip-to-content"
+      >
+        {t('a11y.skipToContent', { defaultValue: 'Saltar al contenido' })}
+      </a>
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground" data-testid="sidebar">
         <div className="px-5 h-16 flex items-center border-b border-sidebar-border">
           <Link href="/"><MarcallWordmark size={24} /></Link>
@@ -57,8 +65,9 @@ export function AppShell({
             const active = location === item.href || (item.href !== '/app' && location.startsWith(item.href));
             return (
               <Link key={item.href} href={item.href} data-testid={`nav-${item.href.replace(/[^a-z0-9]+/gi, '-')}`}>
-                <span className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover-elevate ${active ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold' : 'text-sidebar-foreground/80'}`}>
-                  <item.icon className="size-4" />
+                {/* A-3 fix: aria-current="page" on the active nav item for screen readers */}
+                <span aria-current={active ? 'page' : undefined} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm hover-elevate ${active ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold' : 'text-sidebar-foreground/80'}`}>
+                  <item.icon className="size-4" aria-hidden="true" />
                   {item.label}
                 </span>
               </Link>
@@ -76,7 +85,7 @@ export function AppShell({
           <div className="hidden md:block font-display font-semibold text-lg">{title}</div>
           <div className="flex items-center gap-2">
             <LanguageToggle />
-            <button onClick={toggle} className="size-9 rounded-md hover-elevate inline-flex items-center justify-center text-muted-foreground" aria-label="Cambiar tema" data-testid="button-theme">
+            <button onClick={toggle} className="size-9 rounded-md hover-elevate inline-flex items-center justify-center text-muted-foreground" aria-label={t('a11y.toggleTheme', { defaultValue: 'Cambiar tema' })} data-testid="button-theme">
               {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </button>
             <DropdownMenu>
@@ -95,7 +104,7 @@ export function AppShell({
             </DropdownMenu>
           </div>
         </header>
-        <main className="flex-1 p-5 md:p-8 overflow-x-hidden">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 p-5 md:p-8 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

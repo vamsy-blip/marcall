@@ -48,8 +48,11 @@ export function TrialBanners() {
   // --- Email verify banner ---
   const createdAt = user?.createdAt ? new Date(user.createdAt as any) : null;
   const accountAgeMs = createdAt ? Date.now() - createdAt.getTime() : 0;
+  // C-6 fix: surface the verify-email nudge after 1 minute (was 1 hour). At 1h
+  // many users have already navigated away; 1 minute keeps the prompt fresh
+  // while still avoiding flashing the banner the moment the user signs up.
   const showVerifyBanner =
-    !!user && !user.emailVerifiedAt && accountAgeMs > 60 * 60 * 1000;
+    !!user && !user.emailVerifiedAt && accountAgeMs > 60 * 1000;
 
   // --- Trial banner ---
   const status = subscription?.status;

@@ -56,6 +56,7 @@ const Numeros = lazy(() => import('@/pages/tenant/Numeros'));
 const Equipo = lazy(() => import('@/pages/tenant/Equipo'));
 const Facturacion = lazy(() => import('@/pages/tenant/Facturacion'));
 const Configuracion = lazy(() => import('@/pages/tenant/Configuracion'));
+const MfaSetup = lazy(() => import('@/pages/mfa-setup'));
 
 // Admin + agency portals: rarely loaded by typical users. Lazy.
 const AdminPanorama = lazy(() => import('@/pages/admin/Panorama'));
@@ -160,6 +161,7 @@ function AppRouter() {
       <Route path="/app/equipo">{() => <ProtectedTenant component={Equipo} />}</Route>
       <Route path="/app/facturacion">{() => <ProtectedTenant component={Facturacion} />}</Route>
       <Route path="/app/configuracion">{() => <ProtectedTenant component={Configuracion} />}</Route>
+      <Route path="/app/security/mfa">{() => <ProtectedTenant component={MfaSetup} />}</Route>
 
       {/* === ADMIN ROUTES === */}
       <Route path="/admin">{() => <Redirect to="/admin/panorama" />}</Route>

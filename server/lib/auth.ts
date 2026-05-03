@@ -24,22 +24,23 @@ function legacyHash(plain: string): string {
 export async function verifyPassword(
   plain: string,
   stored: string | null | undefined,
-): Promise<{ ok: boolean; needsRehash: boolean }> {
+): Promise<{ ok: boolean; needsRehash: boolean; isLegacy: boolean }> {
   if (!stored) {
     // Constant-ish time: still hash to avoid leaking "user not found".
     await bcrypt.hash(plain || '_', 4).catch(() => undefined);
-    return { ok: false, needsRehash: false };
+    return { ok: false, needsRehash: false, isLegacy: false };
   }
   if (stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$')) {
     const ok = await bcrypt.compare(plain, stored).catch(() => false);
-    return { ok, needsRehash: false };
+    return { ok, needsRehash: false, isLegacy: false };
   }
-  // Legacy sha256 hex
+  // Legacy sha256 hex — callers should both rehash the password and set the
+  // user's must_reset_password flag so the next login forces a real reset.
   const candidate = legacyHash(plain);
   const ok =
     stored.length === candidate.length &&
     crypto.timingSafeEqual(Buffer.from(stored, 'hex'), Buffer.from(candidate, 'hex'));
-  return { ok, needsRehash: ok };
+  return { ok, needsRehash: ok, isLegacy: true };
 }
 
 /**

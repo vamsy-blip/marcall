@@ -58,12 +58,18 @@ export default function Login() {
     setTimeout(() => setLocation(next), 100);
   };
 
+  // M-3 fix: surface a persistent inline error (with aria-invalid + aria-describedby)
+  // alongside the toast so screen readers and users without focus on the toast see
+  // the failure context.
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const loginMut = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/auth/login', { email: form.email, password: form.password });
       return res.json();
     },
     onSuccess: async (data) => {
+      setLoginError(null);
       if (data.mfaRequired) {
         setChallengeToken(data.challengeToken);
         setMfaStep(true);
@@ -71,12 +77,15 @@ export default function Login() {
       }
       await onLoginSuccess(data);
     },
-    onError: () =>
+    onError: () => {
+      const desc = t('auth.loginGenericError', { defaultValue: 'Email o contraseña incorrectos.' });
+      setLoginError(desc);
       toast({
         title: t('auth.loginFail', { defaultValue: 'No pudimos entrar' }),
-        description: t('auth.loginGenericError', { defaultValue: 'Email o contraseña incorrectos.' }),
+        description: desc,
         variant: 'destructive',
-      }),
+      });
+    },
   });
 
   const mfaMut = useMutation({
@@ -116,8 +125,11 @@ export default function Login() {
                       autoComplete="email"
                       required
                       value={form.email}
-                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setLoginError(null); }}
                       data-testid="input-email"
+                      autoFocus /* L-1 fix: focus email on mount so users can start typing immediately */
+                      aria-invalid={loginError ? true : undefined}
+                      aria-describedby={loginError ? 'login-error' : undefined}
                     />
                   </div>
                   <div>
@@ -133,10 +145,17 @@ export default function Login() {
                       autoComplete="current-password"
                       required
                       value={form.password}
-                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                      onChange={e => { setForm(f => ({ ...f, password: e.target.value })); setLoginError(null); }}
                       data-testid="input-password"
+                      aria-invalid={loginError ? true : undefined}
+                      aria-describedby={loginError ? 'login-error' : undefined}
                     />
                   </div>
+                  {loginError && (
+                    <div id="login-error" role="alert" className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2" data-testid="text-login-error">
+                      {loginError}
+                    </div>
+                  )}
                   <label className="flex items-center gap-2 text-sm text-muted-foreground select-none cursor-pointer">
                     <Checkbox
                       checked={form.remember}

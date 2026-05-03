@@ -72,7 +72,23 @@ export const config = parsed.data;
 const isLive = config.MARCALL_INTEGRATION_MODE === 'live';
 const isProd = config.NODE_ENV === 'production';
 
-// Production + live mode requires real secrets
+// Any production deployment (mock or live) requires the encryption key and
+// the cron secret — the encryption key protects every at-rest secret
+// (refresh tokens, MFA secrets) and the cron secret gates the daily-summary
+// + recording-purge jobs. Both are non-negotiable in production.
+if (isProd) {
+  const baseRequired = ['MARCALL_ENCRYPTION_KEY', 'MARCALL_CRON_SECRET'] as const;
+  const missingBase = baseRequired.filter((k) => !(config as any)[k]);
+  if (missingBase.length) {
+    console.error(
+      '[config] Production requires (any mode):',
+      missingBase.join(', '),
+    );
+    process.exit(1);
+  }
+}
+
+// Production + live mode additionally requires every third-party credential.
 if (isLive && isProd) {
   const required = [
     'STRIPE_SECRET_KEY',
@@ -84,8 +100,6 @@ if (isLive && isProd) {
     'VAPI_API_KEY',
     'VAPI_TOOL_SECRET',
     'VAPI_WEBHOOK_SECRET',
-    'MARCALL_ENCRYPTION_KEY',
-    'MARCALL_CRON_SECRET',
   ] as const;
   const missing = required.filter((k) => !(config as any)[k]);
   if (missing.length) {

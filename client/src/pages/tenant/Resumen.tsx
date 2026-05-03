@@ -9,6 +9,7 @@ import { TestCallModal } from '@/components/tenant/TestCallModal';
 import { useAuth } from '@/components/AuthProvider';
 import { useLang } from '@/components/LanguageProvider';
 import { Card, CardContent } from '@/components/ui/card';
+import { useTheme } from '@/components/ThemeProvider';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -46,12 +47,18 @@ export default function Resumen() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { lang } = useLang();
+  const { theme } = useTheme();
   const dateLocale = lang === 'en' ? enUS : es;
   const tenantId = user?.currentTenantId;
   const [showTestCall, setShowTestCall] = useState(false);
 
   const { data: tenant } = useQuery<any>({ queryKey: ['/api/tenants', tenantId], enabled: !!tenantId });
-  const { data: calls = [], isLoading: callsLoading } = useQuery<any[]>({ queryKey: ['/api/tenants', tenantId, 'calls'], enabled: !!tenantId });
+  const { data: callsResp, isLoading: callsLoading } = useQuery<any>({ queryKey: ['/api/tenants', tenantId, 'calls', { limit: 500 }], enabled: !!tenantId, queryFn: async () => {
+    const { apiRequest } = await import('@/lib/queryClient');
+    const res = await apiRequest('GET', `/api/tenants/${tenantId}/calls?limit=500&orderBy=startedAt:desc`);
+    return res.json();
+  } });
+  const calls: any[] = Array.isArray(callsResp) ? callsResp : (callsResp?.items || callsResp?.data || []);
   const { data: appts = [] } = useQuery<any[]>({ queryKey: ['/api/tenants', tenantId, 'appointments'], enabled: !!tenantId });
   const { data: leads = [] } = useQuery<any[]>({ queryKey: ['/api/tenants', tenantId, 'leads'], enabled: !!tenantId });
   const { data: usage } = useQuery<any>({ queryKey: ['/api/tenants', tenantId, 'usage'], enabled: !!tenantId });
@@ -183,7 +190,7 @@ export default function Resumen() {
                 <span className="text-xs text-muted-foreground tabular-nums">{calls.length} {t('common.results')}</span>
               </div>
               <div className="h-32">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer key={theme} width="100%" height="100%">
                   <LineChart data={sparkData} margin={{ top: 5, right: 8, left: -25, bottom: 0 }}>
                     <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip

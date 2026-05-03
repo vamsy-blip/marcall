@@ -249,6 +249,11 @@ export function runMigrations(sqlite: Database.Database) {
   // users.email_verified_at — set when user clicks verification link
   exec(`ALTER TABLE users ADD COLUMN email_verified_at INTEGER`);
 
+  // users.must_reset_password — accounts seeded under the legacy sha256
+  // format are flagged at login so they're forced through a password
+  // reset on next login (bcrypt-hashed thereafter).
+  exec(`ALTER TABLE users ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0`);
+
   // email_verifications: 32-byte hex token, 24h expiry, marked verified once used
   exec(`CREATE TABLE IF NOT EXISTS email_verifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -305,6 +310,16 @@ export function runMigrations(sqlite: Database.Database) {
   )`);
   exec(`CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON invoices(tenant_id)`);
   exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_stripe ON invoices(stripe_invoice_id)`);
+
+  // tenants: onboarding wizard progress (J-8 from UX-journey audit) so users
+  // who refresh mid-wizard or come back on a different device pick up where
+  // they left off instead of being dropped back to step 0.
+  exec(`ALTER TABLE tenants ADD COLUMN onboarding_step INTEGER NOT NULL DEFAULT 0`);
+  exec(`ALTER TABLE tenants ADD COLUMN onboarding_complete INTEGER NOT NULL DEFAULT 0`);
+
+  // users: per-user notification preferences (J-60). Stored as JSON text so
+  // the schema can evolve without further ALTERs.
+  exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT`);
 
   // integrations: OAuth token columns + status
   exec(`ALTER TABLE integrations ADD COLUMN provider TEXT`);

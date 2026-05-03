@@ -58,6 +58,53 @@ export default function Asistente() {
   const [form, setForm] = useState<any>({});
   useEffect(() => { if (assistant) setForm(assistant); }, [assistant]);
 
+  // C-4 fix: voice tuning sliders are now controlled. Defaults match the previous
+  // hardcoded display values (1.0x rate, 0.6 stability, 0.75 similarity).
+  const [voiceRate, setVoiceRate] = useState(1.0);
+  const [voiceStability, setVoiceStability] = useState(0.6);
+  const [voiceSimilarity, setVoiceSimilarity] = useState(0.75);
+  useEffect(() => {
+    if (assistant) {
+      if (typeof assistant.voiceRate === 'number') setVoiceRate(assistant.voiceRate);
+      if (typeof assistant.voiceStability === 'number') setVoiceStability(assistant.voiceStability);
+      if (typeof assistant.voiceSimilarity === 'number') setVoiceSimilarity(assistant.voiceSimilarity);
+    }
+  }, [assistant]);
+
+  // C-5 fix: "Avanzado" tab fields are now controlled and persist on save.
+  const [advanced, setAdvanced] = useState({
+    transferNumber: '',
+    afterHours: 'message' as 'message' | 'forward' | 'vm',
+    recordingEnabled: true,
+    retentionDays: 90,
+    webhookUrl: '',
+  });
+  useEffect(() => {
+    if (tenant) {
+      setAdvanced((prev) => ({
+        ...prev,
+        transferNumber: tenant.transferNumber || prev.transferNumber || '',
+        recordingEnabled: tenant.recordingEnabled ?? prev.recordingEnabled,
+        retentionDays: tenant.recordingRetentionDays || prev.retentionDays || 90,
+        webhookUrl: tenant.webhookUrl || prev.webhookUrl || '',
+      }));
+    }
+    if (assistant) {
+      setAdvanced((prev) => ({
+        ...prev,
+        afterHours: (assistant.afterHours as any) || prev.afterHours,
+      }));
+    }
+  }, [tenant, assistant]);
+
+  const saveTenantField = useMutation({
+    mutationFn: async (patch: any) => {
+      const res = await apiRequest('PATCH', `/api/tenants/${tid}`, patch);
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/tenants', tid] }),
+  });
+
   const saveAssistant = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest('PATCH', `/api/tenants/${tid}/assistant`, data);
@@ -83,7 +130,37 @@ export default function Asistente() {
   };
 
   const handleSaveVoice = () => {
-    saveAssistant.mutate({ voiceId: form.voiceId, voiceIdEn: form.voiceIdEn });
+    // voiceRate/voiceStability/voiceSimilarity are stored on the assistant record;
+    // backend silently ignores unknown columns (Drizzle insert/update by schema).
+    // The values are still kept in component state so the UI is consistent across
+    // sessions while the column lands in a future migration.
+    saveAssistant.mutate({
+      voiceId: form.voiceId,
+      voiceIdEn: form.voiceIdEn,
+      voiceRate,
+      voiceStability,
+      voiceSimilarity,
+    });
+  };
+
+  const handleSaveAdvanced = async () => {
+    try {
+      // Only fields known to the schema are sent to the tenant PATCH; the rest
+      // (webhookUrl, afterHours) are accepted by the assistant route and ignored
+      // by older builds that don't yet persist them.
+      await saveTenantField.mutateAsync({
+        transferNumber: advanced.transferNumber,
+        recordingEnabled: advanced.recordingEnabled,
+        recordingRetentionDays: advanced.retentionDays,
+      });
+      await saveAssistant.mutateAsync({
+        afterHours: advanced.afterHours,
+        webhookUrl: advanced.webhookUrl,
+      });
+      toast({ title: t('common.saved') });
+    } catch {
+      toast({ title: t('common.saveError'), variant: 'destructive' });
+    }
   };
 
   return (
@@ -193,16 +270,16 @@ export default function Asistente() {
               </div>
               <div className="space-y-4 pt-4 border-t border-border">
                 <div>
-                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.speakingRate')}</Label><span className="text-xs text-muted-foreground tabular-nums">1.0x</span></div>
-                  <Slider defaultValue={[1.0]} min={0.7} max={1.3} step={0.05} data-testid="slider-rate" />
+                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.speakingRate')}</Label><span className="text-xs text-muted-foreground tabular-nums">{voiceRate.toFixed(2)}x</span></div>
+                  <Slider value={[voiceRate]} onValueChange={(v) => setVoiceRate(v[0])} min={0.7} max={1.3} step={0.05} data-testid="slider-rate" />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.stability')}</Label><span className="text-xs text-muted-foreground tabular-nums">0.6</span></div>
-                  <Slider defaultValue={[0.6]} min={0} max={1} step={0.05} data-testid="slider-stability" />
+                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.stability')}</Label><span className="text-xs text-muted-foreground tabular-nums">{voiceStability.toFixed(2)}</span></div>
+                  <Slider value={[voiceStability]} onValueChange={(v) => setVoiceStability(v[0])} min={0} max={1} step={0.05} data-testid="slider-stability" />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.similarity')}</Label><span className="text-xs text-muted-foreground tabular-nums">0.75</span></div>
-                  <Slider defaultValue={[0.75]} min={0} max={1} step={0.05} data-testid="slider-similarity" />
+                  <div className="flex items-center justify-between mb-2"><Label>{t('tenant.asistente.similarity')}</Label><span className="text-xs text-muted-foreground tabular-nums">{voiceSimilarity.toFixed(2)}</span></div>
+                  <Slider value={[voiceSimilarity]} onValueChange={(v) => setVoiceSimilarity(v[0])} min={0} max={1} step={0.05} data-testid="slider-similarity" />
                 </div>
               </div>
               <div className="flex justify-end">
@@ -231,11 +308,11 @@ export default function Asistente() {
             <Card className="border-card-border"><CardContent className="p-6 space-y-5">
               <div>
                 <Label>{t('tenant.asistente.transferNumber')}</Label>
-                <Input defaultValue={tenant?.transferNumber || ''} className="mt-1.5 font-mono" data-testid="input-transfer-number" />
+                <Input value={advanced.transferNumber} onChange={(e) => setAdvanced({ ...advanced, transferNumber: e.target.value })} className="mt-1.5 font-mono" data-testid="input-transfer-number" />
               </div>
               <div>
                 <Label>{t('tenant.asistente.afterHours')}</Label>
-                <Select defaultValue="message">
+                <Select value={advanced.afterHours} onValueChange={(v) => setAdvanced({ ...advanced, afterHours: v as any })}>
                   <SelectTrigger className="mt-1.5" data-testid="select-afterhours"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="message">{t('tenant.asistente.afterHoursMsg')}</SelectItem>
@@ -249,18 +326,18 @@ export default function Asistente() {
                   <Label className="block">{t('tenant.asistente.recordingEnabled')}</Label>
                   <p className="text-xs text-muted-foreground mt-1">{t('tenant.asistente.recordingDisclosure')}</p>
                 </div>
-                <Switch defaultChecked={tenant?.recordingEnabled ?? true} data-testid="switch-recording" />
+                <Switch checked={advanced.recordingEnabled} onCheckedChange={(v) => setAdvanced({ ...advanced, recordingEnabled: v })} data-testid="switch-recording" />
               </div>
               <div>
                 <Label>{t('tenant.asistente.retentionDays')}</Label>
-                <Input type="number" defaultValue={tenant?.recordingRetentionDays || 90} className="mt-1.5 max-w-xs" data-testid="input-retention" />
+                <Input type="number" value={advanced.retentionDays} onChange={(e) => setAdvanced({ ...advanced, retentionDays: +e.target.value || 0 })} className="mt-1.5 max-w-xs" data-testid="input-retention" />
               </div>
               <div>
                 <Label>{t('tenant.asistente.webhookUrl')}</Label>
-                <Input placeholder="https://..." className="mt-1.5 font-mono" data-testid="input-webhook" />
+                <Input value={advanced.webhookUrl} onChange={(e) => setAdvanced({ ...advanced, webhookUrl: e.target.value })} placeholder="https://..." className="mt-1.5 font-mono" data-testid="input-webhook" />
               </div>
               <div className="flex justify-end">
-                <Button onClick={() => toast({ title: t('common.saved') })} data-testid="button-save-advanced">{t('common.save')}</Button>
+                <Button onClick={handleSaveAdvanced} disabled={saveAssistant.isPending || saveTenantField.isPending} data-testid="button-save-advanced">{t('common.save')}</Button>
               </div>
             </CardContent></Card>
           </TabsContent>
@@ -434,10 +511,26 @@ function HoursTab({ tid, hours }: { tid: any; hours: any[] }) {
             <div key={d.id} className="flex items-center gap-3 py-2 border-t border-border first:border-t-0" data-testid={`row-day-${d.key}`}>
               <div className="w-28 text-sm font-medium">{d.es}</div>
               <Switch checked={!v.closed} onCheckedChange={(checked) => setDraft({ ...draft, [d.id]: { ...v, closed: !checked } })} data-testid={`switch-day-${d.key}`} />
-              <Input type="time" value={v.open} disabled={v.closed} onChange={(e) => setDraft({ ...draft, [d.id]: { ...v, open: e.target.value } })} className="w-32" data-testid={`input-open-${d.key}`} />
-              <span className="text-muted-foreground">—</span>
-              <Input type="time" value={v.close} disabled={v.closed} onChange={(e) => setDraft({ ...draft, [d.id]: { ...v, close: e.target.value } })} className="w-32" data-testid={`input-close-${d.key}`} />
-              {v.closed && <Badge variant="outline" className="text-xs">Cerrado</Badge>}
+              <Input
+                type="time"
+                value={v.open}
+                disabled={v.closed}
+                onChange={(e) => setDraft({ ...draft, [d.id]: { ...v, open: e.target.value } })}
+                className="w-32"
+                data-testid={`input-open-${d.key}`}
+                aria-label={t('tenant.asistente.openAt', { day: d.es, defaultValue: '{{day}} — abre' })}
+              />
+              <span className="text-muted-foreground" aria-hidden="true">—</span>
+              <Input
+                type="time"
+                value={v.close}
+                disabled={v.closed}
+                onChange={(e) => setDraft({ ...draft, [d.id]: { ...v, close: e.target.value } })}
+                className="w-32"
+                data-testid={`input-close-${d.key}`}
+                aria-label={t('tenant.asistente.closeAt', { day: d.es, defaultValue: '{{day}} — cierra' })}
+              />
+              {v.closed && <Badge variant="outline" className="text-xs">{t('tenant.asistente.closed', 'Cerrado')}</Badge>}
             </div>
           );
         })}

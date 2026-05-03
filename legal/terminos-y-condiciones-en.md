@@ -15,6 +15,10 @@ The original v1.0 is archived at:
 
 For historical continuity, if you need to reference Terms accepted under the previous domain, consult the archived file above or contact **legal@careofaddress.com**.
 
+## Consumer rights (PROFECO)
+
+MARCALL is offered to legal entities and professionals. When you contract MARCALL as a final consumer, you retain every right granted by Mexico’s **Federal Consumer Protection Law** (Ley Federal de Protección al Consumidor), including the right to file complaints with the **Federal Consumer Protection Agency (PROFECO)** at **www.gob.mx/profeco**. Before initiating any proceeding, please contact us at **legal@careofaddress.com** so we can resolve the dispute directly.
+
 ---
 
 *MARCALL — marcall.careofaddress.com*  

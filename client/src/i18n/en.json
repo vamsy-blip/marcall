@@ -45,6 +45,11 @@
     "remove": "Remove",
     "saved": "Saved",
     "saveError": "Could not save",
+    "skipToContent": "Skip to content",
+    "theme": {
+      "toLight": "Switch to light theme",
+      "toDark": "Switch to dark theme"
+    },
     "today": "Today",
     "minutes": "minutes",
     "min": "min",
@@ -471,7 +476,21 @@
     "spanishLabel": "Spanish (Mexico)",
     "englishLabel": "English (US)",
     "bilingualNote": "Your AI will handle both languages — fill in both versions for best quality.",
-    "callMeNow": "Call me now to test"
+    "callMeNow": "Call me now to test",
+    "errors": {
+      "nameRequired": "Enter your business name (minimum 2 characters).",
+      "transferInvalid": "Enter a valid number in international format (e.g. +52 55 1234 5678)."
+    },
+    "completeTitle": "Onboarding complete",
+    "completeDesc": "Your assistant is ready. Taking you to the dashboard.",
+    "testCall": {
+      "cta": "Call me now to test",
+      "missingNumber": "Add a transfer number in the previous step before testing.",
+      "placedTitle": "Call on the way",
+      "placedDesc": "You’ll receive a call at {{number}} in a few seconds.",
+      "errorTitle": "Couldn’t place the call",
+      "errorDesc": "Please try again in a moment."
+    }
   },
   "legal": {
     "privacy": "Privacy notice",
@@ -481,7 +500,19 @@
   "cookies": {
     "banner": "We use essential cookies for authentication and core functionality. We do not use third-party advertising cookies.",
     "accept": "Accept",
-    "learn": "Learn more"
+    "learn": "Learn more",
+    "title": "Cookie preferences",
+    "body": "We use essential cookies for authentication and functionality. You can choose which categories to allow.",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "customize": "Customize",
+    "strictly": "Strictly necessary",
+    "strictlyDesc": "Required to sign you in and keep your session secure. These cannot be turned off.",
+    "analytics": "Analytics",
+    "analyticsDesc": "Help us understand how the product is used.",
+    "marketing": "Marketing",
+    "marketingDesc": "Personalize communications and offers.",
+    "save": "Save preferences"
   },
   "security": {
     "navTitle": "Security",
@@ -630,6 +661,7 @@
       "logout": "Sign out"
     },
     "sidebar": {
+      "ariaLabel": "Main navigation",
       "resumen": "Overview",
       "llamadas": "Calls",
       "citas": "Appointments",
@@ -713,8 +745,15 @@
       "actionArchive": "Archive",
       "actionReply": "Reply via WhatsApp",
       "actionEscalate": "Escalate to lead",
+      "actionMarkNew": "Mark as new",
       "intent": "Intent",
-      "empty": "No messages."
+      "empty": "No messages.",
+      "urgency": {
+        "urgent": "Urgent",
+        "high": "High",
+        "normal": "Normal",
+        "low": "Low"
+      }
     },
     "leads": {
       "title": "Leads",
@@ -781,6 +820,9 @@
       "copyMonday": "Copy Monday to all",
       "holidays": "Holidays",
       "transferNumber": "Human transfer number",
+      "openAt": "Opening time ({{day}})",
+      "closeAt": "Closing time ({{day}})",
+      "closed": "Closed",
       "afterHours": "After-hours behavior",
       "afterHoursMsg": "Take message",
       "afterHoursForward": "Forward to number",
@@ -812,10 +854,18 @@
       "wizardCountry": "Country",
       "wizardArea": "Area code",
       "wizardKyc": "KYC documents",
+      "wizardKycHint": "MX numbers require IFT verification (RFC + proof of address). Turnaround: 3-5 business days.",
+      "kycPending": "In review",
       "kycSubmitted": "Submitted",
       "kycReview": "In review",
       "kycApproved": "Approved",
       "kycRejected": "Rejected",
+      "kycBannerTitle": "KYC in review",
+      "kycBannerBody": "Mexican numbers require IFT KYC verification. Send your RFC and proof of address to <0>support@careofaddress.com</0> with your account ID.",
+      "numberPending": "Pending assignment",
+      "kindMxManaged": "Managed Mexican number",
+      "kindDemoUs": "Demo (US)",
+      "kindByoTwilio": "Bring-your-own Twilio",
       "monthlyCost": "Monthly cost",
       "tied": "Tied assistant",
       "empty": "No numbers tied yet."
@@ -837,6 +887,8 @@
       "mfaOff": "Off",
       "inviteSent": "Invitation sent (mock)",
       "removeConfirm": "Remove this teammate?",
+      "memberCount_one": "{{count}} member",
+      "memberCount_other": "{{count}} members",
       "empty": "It’s just you on this team."
     },
     "facturacion": {
@@ -844,6 +896,7 @@
       "currentPlan": "Current plan",
       "renewsOn": "Renews on {{date}}",
       "upgrade": "Change plan",
+      "upgradeHelper": "Pick the plan that best fits your volume.",
       "manageStripe": "Manage in Stripe",
       "invoices": "Invoices",
       "invDate": "Date",
@@ -851,9 +904,30 @@
       "invStatus": "Status",
       "downloadPdf": "PDF",
       "cfdi": "Request CFDI",
+      "cfdiFailed": "Pending",
+      "emitCfdi": "Issue",
       "paymentMethods": "Payment methods",
       "usageChart": "Usage (last 30 days)",
-      "projection": "At the current pace, you’ll reach {{n}} / {{q}} min this month."
+      "projection": "At the current pace, you’ll reach {{n}} / {{q}} min this month.",
+      "minutesThisMonth": "Minutes this month",
+      "perMonth": "/ month",
+      "perMonthShort": "/mo",
+      "minutesIncluded": "{{n}} min included",
+      "currentPlanBadge": "Current plan",
+      "noInvoices": "No invoices yet. They’ll appear here once your first renewal is processed.",
+      "requestSent": "Request sent",
+      "cfdiEmitError": "Could not issue CFDI",
+      "invoicesEmpty": "No invoices yet. They’ll appear here once your first renewal is processed.",
+      "retryCfdi": "Retry CFDI",
+      "changePlanTitle": "Change plan",
+      "changePlanDesc": "We’ll take you to Stripe to confirm the change. Charges are prorated automatically.",
+      "status": {
+        "paid": "Paid",
+        "unpaid": "Unpaid",
+        "open": "Open",
+        "void": "Void",
+        "uncollectible": "Uncollectible"
+      }
     },
     "config": {
       "title": "Settings",
@@ -927,6 +1001,20 @@
       "neverUsed": "Never",
       "revoke": "Revoke",
       "copySecret": "Copy this key now — it won't be shown again.",
+      "tabSeguridad": "Security",
+      "securityHint": "Protect your account with two-factor authentication and review your active sessions.",
+      "securityMfaTitle": "Two-factor authentication (2FA)",
+      "securityMfaDesc": "Require a code from your authenticator app every time you sign in.",
+      "securityMfaCta": "Set up 2FA",
+      "arcoExportTitle": "Export my data",
+      "arcoExportDesc": "You’ll receive an email with a ZIP archive of all your personal data within 7 business days, in accordance with LFPDPPP.",
+      "arcoExportCta": "Request export",
+      "arcoRectifyTitle": "Request rectification",
+      "arcoRectifyDesc": "If any personal data is inaccurate or incomplete, we can correct it. We’ll contact you to verify the information before applying any changes.",
+      "arcoRectifyCta": "Request rectification",
+      "arcoDeleteTitle": "Request deletion",
+      "arcoDeleteDesc": "We’ll process your request under LFPDPPP within 20 business days. Some data may be retained for tax or audit obligations. This action is irreversible once completed.",
+      "arcoDeleteCta": "Request deletion",
       "sessionsHint": "Active devices on your account. Sign out anywhere you don't recognize.",
       "thisDevice": "This device",
       "revokeSession": "Sign out",

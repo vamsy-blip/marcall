@@ -1,9 +1,8 @@
 import { Link } from 'wouter';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ShieldCheck, ExternalLink, Mail } from 'lucide-react';
+import { ShieldCheck, ExternalLink, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MarcallWordmark } from '@/components/Brand';
-import { LanguagePill } from '@/components/LanguageToggle';
+import { MarketingNav, MarketingFooter } from '@/components/MarketingChrome';
 
 // v2 controls added by security hardening pass
 const V2_IN_PLACE_ES = [
@@ -40,6 +39,8 @@ const SUBPROCESSORS = [
   { vendor: 'Supabase Inc.', purpose: 'Database, storage, auth', data: 'Application data', region: 'US (us-east-1)', certs: 'SOC 2 Type II' },
   { vendor: 'Vercel Inc.', purpose: 'Hosting / CDN', data: 'Request metadata', region: 'Global', certs: 'SOC 2 Type II, ISO 27001' },
   { vendor: 'Resend Inc.', purpose: 'Transactional email', data: 'Email contents', region: 'US', certs: 'SOC 2 Type II' },
+  // P3 (legal) §3.5: Sentry must be disclosed as a subprocessor for error monitoring.
+  { vendor: 'Functional Software, Inc. (Sentry)', purpose: 'Error monitoring', data: 'Error stack traces, request metadata (PII scrubbed)', region: 'US', certs: 'SOC 2 Type II, ISO 27001' },
   { vendor: 'Plausible Insights OÜ', purpose: 'Web analytics', data: 'Anonymous usage', region: 'EU', certs: 'GDPR-native' },
 ];
 
@@ -58,23 +59,10 @@ export default function Security() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* ── Top bar ── */}
-      <header className="border-b">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80" data-testid="link-home">
-            <MarcallWordmark className="h-6" />
-          </Link>
-          <div className="flex items-center gap-3">
-            <LanguagePill />
-            <Link href="/" data-testid="link-back-home">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-1.5" />
-                MARCALL
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      {/* H-4 fix: use the standard MarketingNav so /security has the same
+          navigation as the rest of the marketing site (How it works, Pricing,
+          FAQ, Login, Try free) instead of just "← MARCALL". */}
+      <MarketingNav />
 
       {/* ── Hero ── */}
       <section className="border-b">
@@ -282,13 +270,7 @@ export default function Security() {
         <p className="text-xs text-muted-foreground">{t('security.section8Inai')}</p>
       </Section>
 
-      {/* ── Footer back ── */}
-      <footer className="border-t py-10">
-        <div className="max-w-5xl mx-auto px-6 flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground">
-          <span>© 2026 MARCALL</span>
-          <Link href="/" className="hover:text-primary" data-testid="link-footer-home">← MARCALL</Link>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   );
 }

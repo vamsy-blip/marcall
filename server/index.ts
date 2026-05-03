@@ -72,7 +72,12 @@ app.use(
         baseUri: ["'self'"],
         formAction: ["'self'", "https://checkout.stripe.com"],
         frameAncestors: ["'self'", "https://*.perplexity.ai"],
+        // CSP violation reports — endpoint is best-effort; we don't run a
+        // collector yet, so directives just declare intent. When we deploy
+        // a real report-uri target this will start streaming violations.
+        reportUri: ['/api/csp-report'],
       },
+      reportOnly: false,
     },
     // COEP: use credentialless (safer than require-corp for 3rd-party Stripe iframes)
     crossOriginEmbedderPolicy: { policy: 'credentialless' } as any,
@@ -84,8 +89,11 @@ app.use(
       includeSubDomains: true,
       preload: true,
     },
-    // Sandbox preview proxies may override; explicit DENY anyway for non-iframe deploys.
-    frameguard: { action: 'deny' },
+    // CSP frame-ancestors above is the modern, granular control. Disable
+    // legacy X-Frame-Options so it doesn't conflict with frame-ancestors
+    // (which already permits same-origin and *.perplexity.ai for the
+    // sandbox preview iframe).
+    frameguard: false,
     noSniff: true,
     dnsPrefetchControl: { allow: false },  // X-DNS-Prefetch-Control: off (Control 5)
     permittedCrossDomainPolicies: { permittedPolicies: 'none' }, // X-Permitted-Cross-Domain-Policies: none (Control 5)
